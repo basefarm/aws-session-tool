@@ -242,7 +242,7 @@ get_session() {
 				_echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
 				return 1
 			fi
-			if aws s3 cp --quiet "s3://${ROLEBUCKET}/${ROLESFILE}" "~/.aws/${AWS_PROFILE}_session-tool_roles.cfg" ; then
+			if aws s3 cp --quiet "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ; then
 				return 0
 			else
 				return 1
