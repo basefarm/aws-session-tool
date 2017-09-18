@@ -471,13 +471,10 @@ get_console_url () {
 	local OPTIND
 
   if [ ! -e ~/.aws/${AWS_PROFILE}_roles.cfg ]; then
-    touch ~/.aws/${AWS_PROFILE}_roles.cfg
-    _echoerr "INFO: No ~/.aws/${AWS_PROFILE}_roles.cfg found, initializing empty file"
-  fi
-
-  if [ ! -e ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ]; then
-    _echoerr "ERROR: ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg is missing, please run get_session -d"
-    return 1
+	  if [ ! -e ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ]; then
+  	  _echoerr "ERROR: Neither ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg nor ~/.aws/${AWS_PROFILE}_roles.cfg found, please run get_session -d"
+	    return 1
+		fi
 	fi
 
     # extract options and their arguments into variables. Help and List are dealt with directly
@@ -524,7 +521,7 @@ get_console_url () {
   fi
 
   ROLE_ALIAS=${1:-$AWS_ROLE_ALIAS}
-  local LINE=$(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg | egrep -m 1 "^${ROLE_ALIAS} ")
+  local LINE=$(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -m 1 "^${ROLE_ALIAS} ")
   local ROLE_ARN=$(echo $LINE | awk '{print $2}')
   local SESSION_NAME=$(echo $LINE | awk '{print $3}')
   local EXTERNAL_ID=$(echo $LINE | awk '{print $4}')
@@ -677,7 +674,7 @@ assume_role () {
   fi
 
   ROLE_ALIAS=${1:-$AWS_ROLE_ALIAS}
-  local LINE=$(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg | egrep -m 1 "^${ROLE_ALIAS} ")
+  local LINE=$(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -m 1 "^${ROLE_ALIAS} ")
   local ROLE_ARN=$(echo $LINE | awk '{print $2}')
   local SESSION_NAME=$(echo $LINE | awk '{print $3}')
   local EXTERNAL_ID=$(echo $LINE | awk '{print $4}')
