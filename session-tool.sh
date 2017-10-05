@@ -114,8 +114,8 @@ _aws_reset () {
 # Assume AWS_PROFILE is set
 _init_aws () {
 
-  local USER="$(aws --output json --profile $AWS_PROFILE iam get-user | python -mjson.tool | grep Arn | awk -F\" '{print $4}')"
-  local SERIAL="$(echo ${USER} | sed 's/:user\//:mfa\//g' )"
+  local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
+  local SERIAL="${USER/:user/:mfa}"
 
   if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
 	   export AWS_USER=$USER
@@ -277,7 +277,7 @@ get_session() {
 			return 0
 		fi
 	fi
-	# Upload like this: aws s3 cp --acl authenticated-read /tmp/bf-roles.cfg s3://bf-aws-tools-session-tool/
+	# Upload like this: aws s3 cp --acl private /tmp/bf-roles.cfg s3://bf-aws-tools-session-tool/
 
 	# Verify session
 	if $VERIFY; then
