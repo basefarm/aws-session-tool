@@ -1,5 +1,5 @@
 #!/bin/bash
-# version: 1.2.1
+VERSION=1.2.1
 
 #
 # Bash utility to
