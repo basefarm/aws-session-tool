@@ -1,6 +1,11 @@
 #!/bin/bash
+<<<<<<< HEAD
 VERSION=1.2.0
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
+=======
+VERSION=1.2.1
+
+>>>>>>> 28d7eaf3f39eac672c0aec26c41352b73a83519f
 #
 # Bash utility to
 # 1) create a session token in the users environment from existing credentials,
