@@ -1,5 +1,6 @@
 #!/bin/bash
-
+VERSION=1.2.0
+PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
 # 1) create a session token in the users environment from existing credentials,
@@ -53,7 +54,11 @@ _prereq () {
   type egrep >/dev/null 2>&1 || echo >&2 "ERROR: egrep is not found. session_tools will not work."
   type awk  >/dev/null 2>&1 || echo >&2 "ERROR: awk is not found. session_tools will not work."
   type sed >/dev/null 2>&1 || echo >&2 "ERROR: sed is not found. session_tools will not work."
+	type wget >/dev/null 2>&1 || echo >&2 "ERROR: wget is not found. session_tools will not work."
   [[ `ps -fp $$ | grep $$` =~ "bash" ]] || echo >&2 "ERROR: SHELL is not bash. session_tools will not work."
+
+	PUBVERSION="$(wget -qO- "${PUBURL}" | grep ^VERSION= | cut -d '=' -f 2)"
+	test "${PUBVERSION}" = "${VERSION}" || echo >&2 "WARN: Your version is outdated! You have ${VERSION}, the latest is ${PUBVERSION}"
 }
 
 # Utility for errormessages
