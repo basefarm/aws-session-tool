@@ -269,12 +269,7 @@ get_session() {
 			return 0
 		fi
 	fi
-<<<<<<< HEAD
 	
-=======
-	# Upload like this: aws s3 cp --acl private /tmp/bf-roles.cfg s3://bf-aws-tools-session-tool/
-
->>>>>>> 7e403ce83c3c5c87bd543fde75bb61c531870611
 	# Verify session
 	if $VERIFY; then
 		if [ $# -gt 0 ]; then
