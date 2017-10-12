@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.2.1
+VERSION=1.3.0
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -57,12 +57,10 @@ _prereq () {
 	type wget >/dev/null 2>&1 || echo >&2 "ERROR: wget is not found. session_tools will not work."
   [[ `ps -fp $$ | grep $$` =~ "bash" ]] || echo >&2 "ERROR: SHELL is not bash. session_tools will not work."
 
-	PUBVERSION="$(wget -qO- "${PUBURL}" | grep ^VERSION= | head -n 1 | cut -d '=' -f 2)"
+	PUBVERSION="$(curl -s "${PUBURL}" | grep ^VERSION= | head -n 1 | cut -d '=' -f 2)"
 	test "${PUBVERSION}" = "${VERSION}" || echo >&2 "WARN: Your version is outdated! You have ${VERSION}, the latest is ${PUBVERSION}"
 	
-	declare -g AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_CONSOLE_URL AWS_CONSOLE_URL_EXPIRATION AWS_CONSOLE_URL_EXPIRATION_S AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
-	declare -gA STORED_AWS_PARAMETERS
-	declare -gA TEMP_AWS_PARAMETERS
+	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_CONSOLE_URL AWS_CONSOLE_URL_EXPIRATION AWS_CONSOLE_URL_EXPIRATION_S AWS_CONSOLE_URL_EXPIRATION_LOCAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
 
 # Utility for errormessages
@@ -89,12 +87,12 @@ _rawurlencode() {
 
 _session_not_ok () {
   local NOW=$(date +%s)
-  if [ -z "${STORED_AWS_PARAMETERS[AWS_EXPIRATION_LOCAL]}" ]; then
+  if [ -z "${AWS_EXPIRATION_LOCAL}" ]; then
     _echoerr "ERROR: You do not seem to have a valid session in your environment."
     return 0
   fi
-  if [ ${STORED_AWS_PARAMETERS[AWS_EXPIRATION_S]} -lt $NOW ]; then
-    _echoerr "ERROR: Your ${STORED_AWS_PARAMETERS[AWS_PROFILE]} session expired at ${STORED_AWS_PARAMETERS[AWS_EXPIRATION_LOCAL]}."
+  if [ ${AWS_EXPIRATION_S} -lt $NOW ]; then
+    _echoerr "ERROR: Your ${AWS_PROFILE} session expired at ${AWS_EXPIRATION_LOCAL}."
     return 0
   fi
 
@@ -137,7 +135,7 @@ _get_session_usage() {
 	echo "                 the passphrase you stated when storing the session."
 	echo "    -l           List currently stored sessions including a best guess on"
 	echo "                 when the session expires based on file modification time."
-	echo "    -c           Resets session."
+	echo "    -c           Resets session, removing all environment variables."
 	echo "    -d           Download a list of organization-wide roles to a profile-"
 	echo "                 specific file ~/.aws/[profile]_session-tool_roles.cfg"
 	echo "                 These entries can be overwritten in ~/.aws/[profile]_roles.cfg"
@@ -333,7 +331,7 @@ get_session() {
 		local CREDS=$(echo "$CREDENTIALS" | sed 's/^/export /')
 		eval "$CREDS"
 		for i in ${AWS_PARAMETERS} ; do
-			export $i
+			export i
 		done
 		_pushp STORED_AWS_PARAMETERS
 		return 0
@@ -374,14 +372,14 @@ get_session() {
 
 	case $OSTYPE in
 		darwin*)
-			declare -x AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION  +%s)
-			declare -x AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
+			export AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION  +%s)
+			export AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
 		linux*)
-			declare -x AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION  +%s)
-			declare -x AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
+			export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION  +%s)
+			export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
 		cygwin*)
-			declare -x AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION  +%s)
-			declare -x AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
+			export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION  +%s)
+			export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
 		*)
 		_echoerr "ERROR: Unknown ostype: $OSTYPE"
 		_popp TEMP_AWS_PARAMETERS
@@ -503,7 +501,7 @@ assume_role () {
 
   read tmp ASSUMED_ARN ASSUMED_ROLE tmp2 AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $( if [ -z "$EXTERNAL_ID" ]; then aws --output text sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION_NAME}" ; else aws --output text sts assume-role --role-arn ${ROLE_ARN} --role-session-name ${SESSION_NAME} --external-id ${EXTERNAL_ID} ; fi )
   
-  if [ -z "$SESSION_TOKEN" ]; then
+  if [ -z "$AWS_SESSION_TOKEN" ]; then
     _echoerr "ERROR: Unable to obtain session"
 		_popp TEMP_AWS_PARAMETERS
     return 1
@@ -581,12 +579,14 @@ _pushp () {
   for i in ${AWS_PARAMETERS} ; do
 		case $1 in 
 			store* | STORE* )
-				declare -gx STORED_AWS_PARAMETERS[$i]="${!i}" ;;
+					j="STORED_AWS_PARAMETER_${i}" ;;
 			temp* | TEMP* )
-				declare -gx TEMP_AWS_PARAMETERS[$i]="${!i}" ;;
+					j="TEMPORARY_AWS_PARAMETER_${i}" ;;
 			* )
-				echo "WARN: you can only push to arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS" ;;
+				echo "WARN: you can only push to arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
+				return 1 ;;
 		esac
+			export ${j}="${!i}"
 	done
 }
 
@@ -596,12 +596,14 @@ _popp () {
 		if ! [[ "$* " == *"${i} "* ]] ; then
 			case $1 in 
 				store* | STORE* )
-					declare -gx $i="${STORED_AWS_PARAMETERS[$i]}" ;;
+					j="STORED_AWS_PARAMETER_${i}" ;;
 				temp* | TEMP* )
-					declare -gx $i="${TEMP_AWS_PARAMETERS[$i]}" ;;
+					j="TEMPORARY_AWS_PARAMETER_${i}" ;;
 				* )
-					echo "WARN: you can only pop from arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS" ;;
+					echo "WARN: you can only pop from arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
+					return 1 ;;
 			esac
+			export ${i}="${!j}"
 		fi
 	done
 }
@@ -610,8 +612,10 @@ _popp () {
 # Clean up the user environment and remove every trace of an aws session
 #
 _aws_reset () {
-  for i in ${AWS_PARAMETERS} ; do
-		unset $i
+  for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
+		j="STORED_AWS_PARAMETER_${i}"
+		k="TEMPORARY_AWS_PARAMETER_${i}"
+		unset $i $j $k
 	done
 }
 
