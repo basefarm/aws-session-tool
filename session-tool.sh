@@ -201,6 +201,7 @@ get_session() {
   if test -z ${PROFILE} ; then
 	  if aws configure list | grep -q '<not set>' ; then
 		  _echoerr "ERROR: No profile specified and no default profile configured."
+			return 1
 		else
 		  ${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
 		fi
@@ -317,7 +318,7 @@ get_session() {
 		eval "$CREDENTIALS"
 		if _session_not_ok; then
 		_popp TEMP_AWS_PARAMETERS
-			return $?
+			return 1
 		fi
 
 		local NOW=$(date +%s)
