@@ -54,7 +54,6 @@ _prereq () {
   type egrep >/dev/null 2>&1 || echo >&2 "ERROR: egrep is not found. session_tools will not work."
   type awk  >/dev/null 2>&1 || echo >&2 "ERROR: awk is not found. session_tools will not work."
   type sed >/dev/null 2>&1 || echo >&2 "ERROR: sed is not found. session_tools will not work."
-	type wget >/dev/null 2>&1 || echo >&2 "ERROR: wget is not found. session_tools will not work."
   [[ `ps -fp $$ | grep $$` =~ "bash" ]] || echo >&2 "ERROR: SHELL is not bash. session_tools will not work."
 
 	PUBVERSION="$(curl -s "${PUBURL}" | grep ^VERSION= | head -n 1 | cut -d '=' -f 2)"
