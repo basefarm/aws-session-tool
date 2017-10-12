@@ -125,7 +125,9 @@ _get_session_usage() {
 	echo "    -p profile   The aws credentials profile to use as an auth base."
 	echo "                 The provided profile name will be cached, and be the"
 	echo "                 new default for subsequent calls to get_session."
-	echo "                 Current default: $PROFILE"
+	echo "                 Current cached: $PROFILE"
+	echo "                 To avoid having to enter a profile every time, you can"
+	echo "                 use 'aws configure set default.session_tool_default_profile PROFILE'"
 	echo "    -s           Save the resulting session to persistent storage"
 	echo "                 for retrieval by other shells. You will be prompted"
 	echo "                 twice for a passphrase to protect the stored credentials."
@@ -162,7 +164,7 @@ _get_session_usage() {
 
 get_session() {
 	
-	local OPTIND ; local PROFILE="${AWS_PROFILE}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false
+	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false
 
 	# extract options and their arguments into variables. Help and List are dealt with directly
 	while getopts ":cdhlp:rsuv" opt ; do
