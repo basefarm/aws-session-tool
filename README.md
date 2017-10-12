@@ -34,20 +34,25 @@ for managing your AWS session credentials. This is useful for `terraform` and
  * `-l`           List currently stored sessions including a best guess on
                   when the session expires based on file modification time.
  * `-c`           Resets session.
- * `-f`           Fetches company-wide roles descriptions to ~/.aws/bf-roles.cfg
-                  These entries can be overwritten in ~/.aws/roles.cfg
+ * `-d`           Download a list of organization-wide roles to a profile-
+                  specific file ~/.aws/[profile]_session-tool_roles.cfg
+	                These entries can be overwritten in ~/.aws/[profile]_roles.cfg
                   Fetching is done before getting the session token, using only
                   the permissions granted by the profile.
-* `-h`           Print this usage.
+                  Upstream location and name of the roles list are configurable.
+* `-u`            Uploads ~/.aws/[profile]_session-tool_roles.cfg to the
+	                configured location. Requires more priviledges than download,
+	                so is usually done after assume-role.
+* `-h`            Print this usage.
 
 This command will on a successful authentication return
-session credentials for the Basefarm main account. The credentials
-are returned in the form of environment variables suitable for the `aws`
-cli and `terraform`. The returned session has a duration of 12 hours.
+session credentials for the AWS account holding the profile's credentials.
+The credentials are returned in the form of environment variables suitable for
+the `aws` cli and `terraform`. The returned session has a duration of 12 hours.
 
 At least one of -s, -r or MFA token needs to be provided.
 
-Session state is stored in: `~/.aws/awsops.aes`
+Session state is stored in: `~/.aws/[profile].aes` encrypted with a passphrase.
 
 ## assume_role
 

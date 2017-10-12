@@ -143,7 +143,7 @@ _get_session_usage() {
 	echo "                 These entries can be overwritten in ~/.aws/[profile]_roles.cfg"
 	echo "                 Fetching is done before getting the session token, using only"
 	echo "                 the permissions granted by the profile."
-	echo "                 Upstream location and name of the roles list are configureable."
+	echo "                 Upstream location and name of the roles list are configurable."
 	echo "    -u           Uploads ~/.aws/[profile]_session-tool_roles.cfg to the"
 	echo "                 configured location. Requires more priviledges than download,"
 	echo "                 so is usually done after assume-role."
@@ -544,19 +544,19 @@ assume_role () {
 }
 
 get_console_url () {
-  if [ -z "$1" ]; then
-	  if [ $AWS_CONSOLE_URL_EXPIRATION_S -lt $(date +%s) ]; then
-    	_echoerr "ERROR: Your cached console url expired at $AWS_CONSOLE_EXPIRATION_LOCAL. You need to specify a role to obtain a new console url."
-    	return 1
-  	fi
-  else
+  # if [ -z "$1" ]; then
+	#   if [ $AWS_CONSOLE_URL_EXPIRATION_S -lt $(date +%s) ]; then
+  #   	_echoerr "ERROR: Your cached console url expired at $AWS_CONSOLE_EXPIRATION_LOCAL. You need to specify a role to obtain a new console url."
+  #   	return 1
+  # 	fi
+  # else
 		if assume_role $* ; then
 			_popp TEMP_AWS_PARAMETERS AWS_CONSOLE_URL AWS_CONSOLE_URL_EXPIRATION AWS_CONSOLE_URL_EXPIRATION_S AWS_CONSOLE_URL_EXPIRATION_LOCAL
 		else
 			_echoerr "ERROR: Unable to obtain a new console url."
     	return 1
 		fi
-	fi
+	# fi
 	echo $AWS_CONSOLE_URL
 }
 
