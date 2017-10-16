@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.3.0
+VERSION=1.3.1
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
