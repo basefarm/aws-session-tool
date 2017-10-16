@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.3.3
+VERSION=1.3.4
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -419,24 +419,39 @@ get_console_url () {
 
 }
 _check_exists_rolefiles () {
-	if [ ! -e ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ]; then
-		if [ ! -e ~/.aws/${AWS_PROFILE}_roles.cfg ]; then
-		  _echoerr "ERROR: Neither ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg nor ~/.aws/${AWS_PROFILE}_roles.cfg found, please run get_session -d or create ~/.aws/${AWS_PROFILE}_roles.cfg"
+	local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
+	if [ ! -e ~/.aws/${PROFILE}_session-tool_roles.cfg ]; then
+		if [ ! -e ~/.aws/${PROFILE}_roles.cfg ]; then
+			_echoerr "ERROR: Neither ~/.aws/${PROFILE}_session-tool_roles.cfg nor ~/.aws/${PROFILE}_roles.cfg found, please run get_session -d or create ~/.aws/${PROFILE}_roles.cfg"
 			return 1
 		fi
 	fi
 	return 0
 }
+_check_exists_profile () {
+	local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
+	if test -z $PROFILE ; then
+		return 1
+	fi
+}
 _list_roles () {
-	if _check_exists_rolefiles &>/dev/null ; then
-		test -z "$(find ~/.aws -iname \*_roles.cfg)" || {
-			find ~/.aws -iname ${AWS_PROFILE}_roles.cfg -or -iname ${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
-		}
+	local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
+	if _check_exists_profile ; then
+		if _check_exists_rolefiles ; then
+			find ~/.aws -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
+		else
+			return 1
+		fi
 	else
-		test -z "$(find ~/.aws -iname \*_roles.cfg)" || {
-			echo "# No AWS_PROFILE set (can be set by get_session), showing all roles defined:"
+		if [ ! -z "$(find ~/.aws -iname \*_roles.cfg)" ] ; then 
+			echo "# INFO: No AWS_PROFILE specified (can be set by get_session, or a default profile"
+			echo "        can be defined with aws configure set default.session_tool_default_profile)"
+			echo "#       but some profiles were located, so showing all roles defined:"
 			(find ~/.aws -iname \*_session-tool_roles.cfg ; find ~/.aws -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
-		}
+		else
+			_echoerr "ERROR: Unable to determine profile. Either specify AWS_PROFILE, do a get_session, or set a default profile with aws configure set default.session_tool_default_profile"
+			return 1
+		fi
 	fi
 }
 _sts_assume_role () {
