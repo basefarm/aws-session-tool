@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.3.1
+VERSION=1.3.2
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -38,23 +38,23 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 
 # Verify all prerequisites, and initialize arrays etc
 _prereq () {
-  type curl >/dev/null 2>&1 || echo >&2 "ERROR: curl is not found. session_tools will not work."
-  case $OSTYPE in
-    darwin*) _OPENSSL="/usr/bin/openssl";;
-    linux*)  _OPENSSL="openssl";;
-    cygwin*) _OPENSSL="openssl";;
-    *) echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
-  esac
-  type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
-  type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
-  type aws >/dev/null 2>&1 || echo >&2 "ERROR: aws is not found. session_tools will not work."
-  type python >/dev/null 2>&1 || echo >&2 "ERROR: python is not found. session_tools will not work."
-  python -c "import json.tool" >/dev/null 2>&1 || echo >&2 "ERROR: python json.tool is not found. session_tools will not work."
-  type grep >/dev/null 2>&1 || echo >&2 "ERROR: grep is not found. session_tools will not work."
-  type egrep >/dev/null 2>&1 || echo >&2 "ERROR: egrep is not found. session_tools will not work."
-  type awk  >/dev/null 2>&1 || echo >&2 "ERROR: awk is not found. session_tools will not work."
-  type sed >/dev/null 2>&1 || echo >&2 "ERROR: sed is not found. session_tools will not work."
-  [[ `ps -fp $$ | grep $$` =~ "bash" ]] || echo >&2 "ERROR: SHELL is not bash. session_tools will not work."
+	type curl >/dev/null 2>&1 || echo >&2 "ERROR: curl is not found. session_tools will not work."
+	case $OSTYPE in
+		darwin*	) _OPENSSL="/usr/bin/openssl";;
+		linux*	) _OPENSSL="openssl";;
+		cygwin*	) _OPENSSL="openssl";;
+		*) echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
+	esac
+	type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
+	type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
+	type aws >/dev/null 2>&1 || echo >&2 "ERROR: aws is not found. session_tools will not work."
+	type python >/dev/null 2>&1 || echo >&2 "ERROR: python is not found. session_tools will not work."
+	python -c "import json.tool" >/dev/null 2>&1 || echo >&2 "ERROR: python json.tool is not found. session_tools will not work."
+	type grep >/dev/null 2>&1 || echo >&2 "ERROR: grep is not found. session_tools will not work."
+	type egrep >/dev/null 2>&1 || echo >&2 "ERROR: egrep is not found. session_tools will not work."
+	type awk  >/dev/null 2>&1 || echo >&2 "ERROR: awk is not found. session_tools will not work."
+	type sed >/dev/null 2>&1 || echo >&2 "ERROR: sed is not found. session_tools will not work."
+	[[ `ps -fp $$ | grep $$` =~ "bash" ]] || echo >&2 "ERROR: SHELL is not bash. session_tools will not work."
 
 	PUBVERSION="$(curl -s "${PUBURL}" | grep ^VERSION= | head -n 1 | cut -d '=' -f 2)"
 	test "${PUBVERSION}" = "${VERSION}" || echo >&2 "WARN: Your version is outdated! You have ${VERSION}, the latest is ${PUBVERSION}"
@@ -69,33 +69,33 @@ _echoerr() { cat <<< "$@" 1>&2; }
 # Utility to urlencode a string
 #
 _rawurlencode() {
-  local string="${1}"
-  local strlen=${#string}
-  local encoded=""
+	local string="${1}"
+	local strlen=${#string}
+	local encoded=""
 
-  for (( pos=0 ; pos<strlen ; pos++ )); do
-     c=${string:$pos:1}
-     case "$c" in
-         [-_.~a-zA-Z0-9] ) o="${c}" ;;
-         * )               printf -v o '%%%02x' "'$c"
-     esac
-     encoded+="${o}"
-  done
-  echo "${encoded}"
+	for (( pos=0 ; pos<strlen ; pos++ )); do
+		c=${string:$pos:1}
+		case "$c" in
+			[-_.~a-zA-Z0-9]	) o="${c}" ;;
+			* 							)	printf -v o '%%%02x' "'$c"
+		 esac
+		 encoded+="${o}"
+	done
+	echo "${encoded}"
 }
 
 _session_not_ok () {
-  local NOW=$(date +%s)
-  if [ -z "${AWS_EXPIRATION_LOCAL}" ]; then
-    _echoerr "ERROR: You do not seem to have a valid session in your environment."
-    return 0
-  fi
-  if [ ${AWS_EXPIRATION_S} -lt $NOW ]; then
-    _echoerr "ERROR: Your ${AWS_PROFILE} session expired at ${AWS_EXPIRATION_LOCAL}."
-    return 0
-  fi
+	local NOW=$(date +%s)
+	if [ -z "${AWS_EXPIRATION_LOCAL}" ]; then
+		_echoerr "ERROR: You do not seem to have a valid session in your environment."
+		return 0
+	fi
+	if [ ${AWS_EXPIRATION_S} -lt $NOW ]; then
+		_echoerr "ERROR: Your ${AWS_PROFILE} session expired at ${AWS_EXPIRATION_LOCAL}."
+		return 0
+	fi
 
-  return 1
+	return 1
 }
 
 
@@ -103,18 +103,18 @@ _session_not_ok () {
 # Assume AWS_PROFILE is set
 _init_aws () {
 
-  local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
-  local SERIAL="${USER/:user/:mfa}"
+	local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
+	local SERIAL="${USER/:user/:mfa}"
 
-  if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
-	   export AWS_USER=$USER
-	    export AWS_SERIAL=$SERIAL
-  else
-    _echoerr "ERROR: Unable to obtain AWS user ARN using the profile: $AWS_PROFILE"
-	  _echoerr "DEBUG: USER=$USER"
-    _echoerr "DEBUG: SERIAL=$SERIAL"
-	  return 1
-  fi
+	if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
+		export AWS_USER=$USER
+		export AWS_SERIAL=$SERIAL
+	else
+		_echoerr "ERROR: Unable to obtain AWS user ARN using the profile: $AWS_PROFILE"
+		_echoerr "DEBUG: USER=$USER"
+		_echoerr "DEBUG: SERIAL=$SERIAL"
+		return 1
+	fi
 }
 
 
@@ -125,17 +125,17 @@ get_session() {
 	# extract options and their arguments into variables. Help and List are dealt with directly
 	while getopts ":cdhlp:rsuv" opt ; do
 		case "$opt" in
-			h  ) _get_session_usage ; return 0 ;;
-			c  ) _aws_reset ; return 0 ;;
-			l  )
+			h		) _get_session_usage ; return 0 ;;
+			c		) _aws_reset ; return 0 ;;
+			l		)
 				local now=$(date +%s)
 				for f in `ls ~/.aws/*.aes`; do
 					local expiry_s=$(expr $(date -r $f '+%s') + 43200 )
 					case $OSTYPE in
-						darwin*) local expiry_l=$(date -r $expiry_s '+%H:%M:%S %Y-%m-%d');;
-						linux*) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
-						cygwin*) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
-						*) _echoerr "ERROR: Unknown ostype: $OSTYPE" ; return 1 ;;
+						darwin*	) local expiry_l=$(date -r $expiry_s '+%H:%M:%S %Y-%m-%d');;
+						linux*	) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
+						cygwin*	) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
+						*				) _echoerr "ERROR: Unknown ostype: $OSTYPE" ; return 1 ;;
 					esac
 					local profile=$(basename $f .aes)
 					if [ $expiry_s -lt $now ]; then
@@ -145,28 +145,28 @@ get_session() {
 					fi
 				done
 				return 0 ;;
-			p  ) PROFILE=$OPTARG ;;
-			s  ) STORE=true ;;
-			r  ) RESTORE=true ;;
-			d  ) DOWNLOAD=true ;;
-			u  ) UPLOAD=true ;;
-			v  ) VERIFY=true ;;
-			\? ) echo "Invalid option: -$OPTARG" >&2 ;;
-			:  ) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+			p		) PROFILE=$OPTARG ;;
+			s		) STORE=true ;;
+			r		) RESTORE=true ;;
+			d		) DOWNLOAD=true ;;
+			u		) UPLOAD=true ;;
+			v		) VERIFY=true ;;
+			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
 	done
 	shift $((OPTIND-1))
-  if test -z ${PROFILE} ; then
-	  if aws configure list | grep -q '<not set>' ; then
-		  _echoerr "ERROR: No profile specified and no default profile configured."
+	if test -z ${PROFILE} ; then
+		if aws configure list | grep -q '<not set>' ; then
+			_echoerr "ERROR: No profile specified and no default profile configured."
 			return 1
 		else
-		  ${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
+			${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
 		fi
 	fi
-  if aws configure list --profile $PROFILE &>/dev/null ; then
-    export AWS_PROFILE="${PROFILE}"
-  else
+	if aws configure list --profile $PROFILE &>/dev/null ; then
+		export AWS_PROFILE="${PROFILE}"
+	else
 		_echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
 		return 1
 	fi
@@ -174,7 +174,7 @@ get_session() {
 	# Fetch roles from specified bucket - if it is configured....
 	if ${DOWNLOAD} ; then
 		if ${UPLOAD} ; then
-		  _echoerr "ERROR: uploading and downloading are mutually exclusive..."
+			_echoerr "ERROR: uploading and downloading are mutually exclusive..."
 			return 1
 		else
 			local ROLEBUCKET
@@ -317,9 +317,9 @@ get_session() {
 			return 1
 		fi
 
-	  local MFA=$1
+		local MFA=$1
 		read CREDTXT AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $(aws --output text --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA)
-	  
+
 	else
 		read CREDTXT AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $(aws --output text --profile $AWS_PROFILE sts get-session-token)
 	  _echoerr "# Warning: you did not input an MFA token. Proceed at your own risk."
@@ -333,13 +333,13 @@ get_session() {
 
 	case $OSTYPE in
 		darwin*)
-			export AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION  +%s)
+			export AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
 			export AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
 		linux*)
-			export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION  +%s)
+			export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
 			export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
 		cygwin*)
-			export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION  +%s)
+			export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
 			export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
 		*)
 		_echoerr "ERROR: Unknown ostype: $OSTYPE"
@@ -369,38 +369,38 @@ EOF
 }
 
 assume_role () {
-  local OPTIND
+	local OPTIND
 
-  # extract options and their arguments into variables. Help and List are dealt with directly
+	# extract options and their arguments into variables. Help and List are dealt with directly
 	while getopts ":hl" opt ; do
 		case "$opt" in
-			h ) _assume_role_usage ; return 0 ;;
-			l ) _list_roles ; return 0 ;;
-			\? ) echo "Invalid option: -$OPTARG" >&2 ;;
-			:  ) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+			h		) _assume_role_usage ; return 0 ;;
+			l		) _list_roles ; return 0 ;;
+			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
 	done
 	shift $((OPTIND-1))
-  if ! _check_exists_rolefiles ; then return 1 ; fi
+	if ! _check_exists_rolefiles ; then return 1 ; fi
 
 	_sts_assume_role $* ; return $?
 
 }
 
 get_console_url () {
-  local OPTIND
+	local OPTIND
 
-  # extract options and their arguments into variables. Help and List are dealt with directly
+	# extract options and their arguments into variables. Help and List are dealt with directly
 	while getopts ":hl" opt ; do
 		case "$opt" in
-			h ) _get_console_url_usage ; return 0 ;;
-			l ) _list_roles ; return 0 ;;
-			\? ) echo "Invalid option: -$OPTARG" >&2 ;;
-			:  ) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+			h		) _get_console_url_usage ; return 0 ;;
+			l		) _list_roles ; return 0 ;;
+			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
 	done
 	shift $((OPTIND-1))
-  if ! _check_exists_rolefiles ; then return 1 ; fi
+	if ! _check_exists_rolefiles ; then return 1 ; fi
 
 	if _sts_assume_role $* ; then
 		local SESSION="{\"sessionId\":\"${AWS_ACCESS_KEY_ID}\",\"sessionKey\":\"${AWS_SECRET_ACCESS_KEY}\",\"sessionToken\":\"${AWS_SESSION_TOKEN}\"}"
@@ -421,7 +421,7 @@ get_console_url () {
 _check_exists_rolefiles () {
 	if [ ! -e ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ]; then
 		if [ ! -e ~/.aws/${AWS_PROFILE}_roles.cfg ]; then
-  	  _echoerr "ERROR: Neither ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg nor ~/.aws/${AWS_PROFILE}_roles.cfg found, please run get_session -d or create ~/.aws/${AWS_PROFILE}_roles.cfg"
+		  _echoerr "ERROR: Neither ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg nor ~/.aws/${AWS_PROFILE}_roles.cfg found, please run get_session -d or create ~/.aws/${AWS_PROFILE}_roles.cfg"
 			return 1
 		fi
 	fi
@@ -429,56 +429,57 @@ _check_exists_rolefiles () {
 }
 _list_roles () {
 	if _check_exists_rolefiles &>/dev/null ; then
-		echo "Available roles for profile \"${AWS_PROFILE}\":"
-		cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg | egrep -hv -e "^#" -e "^$" | sort -u
+		find ~/.aws -iname ${AWS_PROFILE}_roles.cfg -or -iname ${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
 	else
-		echo "No AWS_PROFILE set (can be set by get_session), showing all roles defined:"
-		(find ~/.aws -iname \*_session-tool_roles.cfg ; find ~/.aws -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs -r cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}' |column
+		if find ~/.aws -iname \*_session-tool_roles.cfg &>/dev/null ; then
+			echo "No AWS_PROFILE set (can be set by get_session), showing all roles defined:"
+			(find ~/.aws -iname \*_session-tool_roles.cfg ; find ~/.aws -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
+		fi
 	fi
 }
 _sts_assume_role () {
-	  if _session_not_ok; then
-    return $?
-  fi
+	if _session_not_ok; then
+		return $?
+	fi
 
 	_pushp TEMP_AWS_PARAMETERS
 	_popp STORED_AWS_PARAMETERS
 
-  if [ -z "$1" ]; then
-	   if [ -z "$AWS_ROLE_ALIAS" ];  then
-       _echoerr "ERROR: Missing mandatory role alias name."
+	if [ -z "$1" ]; then
+	  if [ -z "$AWS_ROLE_ALIAS" ]; then
+			_echoerr "ERROR: Missing mandatory role alias name."
 			_popp TEMP_AWS_PARAMETERS
-       return 1
-     fi
+			return 1
+		fi
 	else
 		STORED_AWS_PARAMETER_AWS_ROLE_ALIAS="$1"
-  fi
+	fi
 
 
-  AWS_ROLE_ALIAS=${1:-$AWS_ROLE_ALIAS}
-  read tmp ROLE_ARN SESSION_NAME EXTERNAL_ID <<< $(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -m 1 "^${AWS_ROLE_ALIAS} ")
+	AWS_ROLE_ALIAS=${1:-$AWS_ROLE_ALIAS}
+	read tmp ROLE_ARN SESSION_NAME EXTERNAL_ID <<< $(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -m 1 "^${AWS_ROLE_ALIAS} ")
 
-  if [ -z "$ROLE_ARN" ]; then
-    _echoerr "ERROR: Missing role_arn in ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+	if [ -z "$ROLE_ARN" ]; then
+		_echoerr "ERROR: Missing role_arn in ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
 		_popp TEMP_AWS_PARAMETERS
-    return 1
-  fi
+		return 1
+	fi
 
-  if [ -z "$SESSION_NAME" ]; then
-    _echoerr "ERROR: Missing session_name in ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+	if [ -z "$SESSION_NAME" ]; then
+		_echoerr "ERROR: Missing session_name in ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
 		_popp TEMP_AWS_PARAMETERS
-    return 1
-  fi
+		return 1
+	fi
 
-  read tmp ASSUMED_ARN ASSUMED_ROLE tmp2 AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $( if [ -z "$EXTERNAL_ID" ]; then aws --output text sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION_NAME}" ; else aws --output text sts assume-role --role-arn ${ROLE_ARN} --role-session-name ${SESSION_NAME} --external-id ${EXTERNAL_ID} ; fi )
-  
-  if [ -z "$AWS_SESSION_TOKEN" ]; then
-    _echoerr "ERROR: Unable to obtain session"
+	read tmp ASSUMED_ARN ASSUMED_ROLE tmp2 AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $( if [ -z "$EXTERNAL_ID" ]; then aws --output text sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION_NAME}" ; else aws --output text sts assume-role --role-arn ${ROLE_ARN} --role-session-name ${SESSION_NAME} --external-id ${EXTERNAL_ID} ; fi )
+	
+	if [ -z "$AWS_SESSION_TOKEN" ]; then
+		_echoerr "ERROR: Unable to obtain session"
 		_popp TEMP_AWS_PARAMETERS
-    return 1
-  fi
+		return 1
+	fi
 
-  case $OSTYPE in
+	case $OSTYPE in
 		darwin*)
 			AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
 			AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
@@ -506,7 +507,7 @@ aws-assume-role () {
 # Display a set of parameters
 _dumpp () {
 	echo "# Parameter set:"
-  for i in ${AWS_PARAMETERS} ; do
+	for i in ${AWS_PARAMETERS} ; do
 		case $1 in 
 			store* | STORE* )
 				printf "# %30s : %s\n" "${i}" "${STORED_AWS_PARAMETERS[$i]}" ;;
@@ -520,7 +521,7 @@ _dumpp () {
 
 # Push the current parameters into an array
 _pushp () {
-  for i in ${AWS_PARAMETERS} ; do
+	for i in ${AWS_PARAMETERS} ; do
 		case $1 in 
 			store* | STORE* )
 					j="STORED_AWS_PARAMETER_${i}" ;;
@@ -536,7 +537,7 @@ _pushp () {
 
 # Pop an array into the current parameters, skipping the listed parameters
 _popp () {
-  for i in ${AWS_PARAMETERS} ; do
+	for i in ${AWS_PARAMETERS} ; do
 		if ! [[ "$* " == *"${i} "* ]] ; then
 			case $1 in 
 				store* | STORE* )
@@ -556,7 +557,7 @@ _popp () {
 # Clean up the user environment and remove every trace of an aws session
 #
 _aws_reset () {
-  for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
+	for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
 		j="STORED_AWS_PARAMETER_${i}"
 		k="TEMPORARY_AWS_PARAMETER_${i}"
 		unset $i $j $k
