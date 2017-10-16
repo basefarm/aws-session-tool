@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.3.2
+VERSION=1.3.3
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -429,12 +429,14 @@ _check_exists_rolefiles () {
 }
 _list_roles () {
 	if _check_exists_rolefiles &>/dev/null ; then
-		find ~/.aws -iname ${AWS_PROFILE}_roles.cfg -or -iname ${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
+		test -z "$(find ~/.aws -iname \*_roles.cfg)" || {
+			find ~/.aws -iname ${AWS_PROFILE}_roles.cfg -or -iname ${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
+		}
 	else
-		if find ~/.aws -iname \*_session-tool_roles.cfg &>/dev/null ; then
-			echo "No AWS_PROFILE set (can be set by get_session), showing all roles defined:"
+		test -z "$(find ~/.aws -iname \*_roles.cfg)" || {
+			echo "# No AWS_PROFILE set (can be set by get_session), showing all roles defined:"
 			(find ~/.aws -iname \*_session-tool_roles.cfg ; find ~/.aws -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
-		fi
+		}
 	fi
 }
 _sts_assume_role () {
