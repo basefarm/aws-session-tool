@@ -117,50 +117,6 @@ _init_aws () {
   fi
 }
 
-_get_session_usage() {
-	echo "Usage: get_session [-h] [-s] [-r] [-l] [-c] [-d] [-p profile] [MFA token]"
-	echo ""
-	echo "    MFA token    Your one time token. If not provided, and you provided"
-	echo "                 the -s option, the current credentials are stored."
-	echo "    -p profile   The aws credentials profile to use as an auth base."
-	echo "                 The provided profile name will be cached, and be the"
-	echo "                 new default for subsequent calls to get_session."
-	echo "                 Current cached: $PROFILE"
-	echo "                 To avoid having to enter a profile every time, you can"
-	echo "                 use 'aws configure set default.session_tool_default_profile PROFILE'"
-	echo "    -s           Save the resulting session to persistent storage"
-	echo "                 for retrieval by other shells. You will be prompted"
-	echo "                 twice for a passphrase to protect the stored credentials."
-	echo "                 Note that storing with an empty passphrase does not work."
-	echo "    -r           Restore previously saved state. You will be promptet for"
-	echo "                 the passphrase you stated when storing the session."
-	echo "    -l           List currently stored sessions including a best guess on"
-	echo "                 when the session expires based on file modification time."
-	echo "    -c           Resets session, removing all environment variables."
-	echo "    -d           Download a list of organization-wide roles to a profile-"
-	echo "                 specific file ~/.aws/[profile]_session-tool_roles.cfg"
-	echo "                 These entries can be overwritten in ~/.aws/[profile]_roles.cfg"
-	echo "                 Fetching is done before getting the session token, using only"
-	echo "                 the permissions granted by the profile."
-	echo "                 Upstream location and name of the roles list are configurable."
-	echo "    -u           Uploads ~/.aws/[profile]_session-tool_roles.cfg to the"
-	echo "                 configured location. Requires more priviledges than download,"
-	echo "                 so is usually done after assume-role."
-	echo "    -v           Verifies that the current session (not profile) is valid"
-	echo "                 and not expired."
-	echo "    -h           Print this usage."
-	echo ""
-	echo "This command will on a successful authentication return session credentials"
-	echo "for the Basefarm main account. The credentials are returned in the form of"
-	echo "environment variables suitable for the aws and terraform cli. The returned"
-	echo "session has a duration of 12 hours."
-	echo ""
-	echo "At least one of -s, -r or MFA token needs to be provided."
-	echo ""
-	echo "Session state is stored in: ~/.aws/${PROFILE}.aes"
-	echo ""
-	echo "See also: get_console_url, assume_role."
-}
 
 get_session() {
 	
@@ -239,9 +195,11 @@ get_session() {
 				_echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
 				return 1
 			fi
-			if aws s3 cp --quiet "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ; then
+			if out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>&1)" ; then
 				return 0
 			else
+				_echoerr "ERROR: ${out}"
+				_echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
 				return 1
 			fi
 		fi
@@ -317,6 +275,7 @@ get_session() {
 		fi
 
 		_pushp TEMP_AWS_PARAMETERS
+		_aws_reset
 		eval "$CREDENTIALS"
 		if _session_not_ok; then
 		_popp TEMP_AWS_PARAMETERS
@@ -411,78 +370,90 @@ EOF
 
 assume_role () {
   local OPTIND
-  if [ ! -e ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ]; then
-  	  _echoerr "ERROR: Neither ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg nor ~/.aws/${AWS_PROFILE}_roles.cfg found, please run get_session -d or create ~/.aws/${AWS_PROFILE}_roles.cfg"
-		return 1
-	fi
 
   # extract options and their arguments into variables. Help and List are dealt with directly
 	while getopts ":hl" opt ; do
 		case "$opt" in
-			h )
-				local ROLE_ALIAS_DEFAULT=${AWS_ROLE_ALIAS:-'<no cached value>'}
-				echo "Usage: assume_role [-h] [-l] <role alias>"
-				echo ""
-				echo "    -h          Print this usage."
-				echo "    -l          List available role aliases."
-				echo "    role alias  The alias of the role to assume."
-				echo "                The alias name will be cached, so subsequent"
-				echo "                calls to get_console_url will use the cached value."
-				echo "                Current cached default: $ROLE_ALIAS_DEFAULT"
-				echo ""
-				echo "This command will use session credentials stored in the shell"
-				echo "from previous calls to get_session The session credentials are"
-				echo "then used to assume the given role."
-				echo ""
-				echo "This command will also set the AWS_CONSOLE_URL containing a"
-				echo "pre-signed url for console access."
-				echo ""
-				echo "The session credentials for the assumed role will replace the"
-				echo "current session in the shell environment. The only way to retrieve"
-				echo "the current session after an assume_role is to have stored your"
-				echo "session using get_session with the -s option and then to"
-				echo "import them again using get_session -r command."
-				echo ""
-				echo "The assumed role credentials will only be valid for one hour,"
-				echo "this is a limitation in the underlaying AWS assume_role function."
-				echo ""
-				echo "Roles are configured in locally in ~/.aws/${AWS_PROFILE}_roles.cfg, and"
-				echo "organization-wide in ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg. The format of that file"
-				echo "is as follows. Comment lines begin with #. No other type of comments"
-				echo "are allowed. One line per role and each line is space separated."
-				echo "The role alias is a name you choose as a shortname for the role."
-				echo "external_id is optional."
-				echo ""
-				echo "Alias role_arn session_name external_id"
-				echo ""
-				echo "Example:"
-				echo "# Roles for assume_role"
-				echo "# Alias role_arn session_name external_id"
-				echo "bf-awsopslab-admin arn:aws:iam::1234567890:role/admin bf-awsopslab-admin BF-AWSOpsLab"
-				echo "foo-test arn:aws:iam::0987654321:role/admin bf-awsopslab-admin"
-				echo ""
-				echo "See also: get_session, get_console_url."
-				return 0 ;;
-			l ) egrep -hv -e "^#" -e "^$" ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg | awk '{print $1}' | sort -u
-				return 0 ;;
+			h ) _assume_role_usage ; return 0 ;;
+			l ) _list_roles ; return 0 ;;
 			\? ) echo "Invalid option: -$OPTARG" >&2 ;;
 			:  ) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
 	done
 	shift $((OPTIND-1))
+  if ! _check_exists_rolefiles ; then return 1 ; fi
 
-  if _session_not_ok; then
+	_sts_assume_role $* ; return $?
+
+}
+
+get_console_url () {
+  local OPTIND
+
+  # extract options and their arguments into variables. Help and List are dealt with directly
+	while getopts ":hl" opt ; do
+		case "$opt" in
+			h ) _get_console_url_usage ; return 0 ;;
+			l ) _list_roles ; return 0 ;;
+			\? ) echo "Invalid option: -$OPTARG" >&2 ;;
+			:  ) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+		esac
+	done
+	shift $((OPTIND-1))
+  if ! _check_exists_rolefiles ; then return 1 ; fi
+
+	if _sts_assume_role $* ; then
+		local SESSION="{\"sessionId\":\"${AWS_ACCESS_KEY_ID}\",\"sessionKey\":\"${AWS_SECRET_ACCESS_KEY}\",\"sessionToken\":\"${AWS_SESSION_TOKEN}\"}"
+		local ENCODED_SESSION=$(_rawurlencode ${SESSION})
+		local URL="https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${ENCODED_SESSION}"
+		local SIGNIN_TOKEN=$(curl --silent ${URL} | python -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
+		local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
+		export AWS_CONSOLE_URL="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
+		_popp TEMP_AWS_PARAMETERS AWS_CONSOLE_URL 
+		echo $AWS_CONSOLE_URL
+	else
+		_echoerr "ERROR: Unable to obtain a new console url."
+		return 1
+	fi
+	# fi
+
+}
+_check_exists_rolefiles () {
+	if [ ! -e ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ]; then
+		if [ ! -e ~/.aws/${AWS_PROFILE}_roles.cfg ]; then
+  	  _echoerr "ERROR: Neither ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg nor ~/.aws/${AWS_PROFILE}_roles.cfg found, please run get_session -d or create ~/.aws/${AWS_PROFILE}_roles.cfg"
+			return 1
+		fi
+	fi
+	return 0
+}
+_list_roles () {
+	if _check_exists_rolefiles &>/dev/null ; then
+		echo "Available roles for profile \"${AWS_PROFILE}\":"
+		cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg | egrep -hv -e "^#" -e "^$" | sort -u
+	else
+		echo "No AWS_PROFILE set (can be set by get_session), showing all roles defined:"
+		(find ~/.aws -iname \*_session-tool_roles.cfg ; find ~/.aws -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs -r cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}' |column
+	fi
+}
+_sts_assume_role () {
+	  if _session_not_ok; then
     return $?
   fi
+
+	_pushp TEMP_AWS_PARAMETERS
+	_popp STORED_AWS_PARAMETERS
 
   if [ -z "$1" ]; then
 	   if [ -z "$AWS_ROLE_ALIAS" ];  then
        _echoerr "ERROR: Missing mandatory role alias name."
+			_popp TEMP_AWS_PARAMETERS
        return 1
      fi
+	else
+		STORED_AWS_PARAMETER_AWS_ROLE_ALIAS="$1"
   fi
 
-	_pushp TEMP_AWS_PARAMETERS
 
   AWS_ROLE_ALIAS=${1:-$AWS_ROLE_ALIAS}
   read tmp ROLE_ARN SESSION_NAME EXTERNAL_ID <<< $(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -m 1 "^${AWS_ROLE_ALIAS} ")
@@ -499,8 +470,6 @@ assume_role () {
     return 1
   fi
 
-	_popp STORED_AWS_PARAMETERS
-
   read tmp ASSUMED_ARN ASSUMED_ROLE tmp2 AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $( if [ -z "$EXTERNAL_ID" ]; then aws --output text sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION_NAME}" ; else aws --output text sts assume-role --role-arn ${ROLE_ARN} --role-session-name ${SESSION_NAME} --external-id ${EXTERNAL_ID} ; fi )
   
   if [ -z "$AWS_SESSION_TOKEN" ]; then
@@ -508,13 +477,6 @@ assume_role () {
 		_popp TEMP_AWS_PARAMETERS
     return 1
   fi
-
-  local SESSION="{\"sessionId\":\"${AWS_ACCESS_KEY_ID}\",\"sessionKey\":\"${AWS_SECRET_ACCESS_KEY}\",\"sessionToken\":\"${AWS_SESSION_TOKEN}\"}"
-  local ENCODED_SESSION=$(_rawurlencode ${SESSION})
-  local URL="https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${ENCODED_SESSION}"
-  local SIGNIN_TOKEN=$(curl --silent ${URL} | python -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
-  local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
-  export AWS_CONSOLE_URL="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
 
   case $OSTYPE in
 		darwin*)
@@ -532,27 +494,7 @@ assume_role () {
 			return 1;;
 		esac
 
-  export AWS_CONSOLE_URL_EXPIRATION=$AWS_EXPIRATION
-  export AWS_CONSOLE_URL_EXPIRATION_S=$AWS_EXPIRATION_S
-  export AWS_CONSOLE_URL_EXPIRATION_LOCAL=$AWS_EXPIRATION_LOCAL
 	return 0
-}
-
-get_console_url () {
-  # if [ -z "$1" ]; then
-	#   if [ $AWS_CONSOLE_URL_EXPIRATION_S -lt $(date +%s) ]; then
-  #   	_echoerr "ERROR: Your cached console url expired at $AWS_CONSOLE_EXPIRATION_LOCAL. You need to specify a role to obtain a new console url."
-  #   	return 1
-  # 	fi
-  # else
-		if assume_role $* ; then
-			_popp TEMP_AWS_PARAMETERS AWS_CONSOLE_URL AWS_CONSOLE_URL_EXPIRATION AWS_CONSOLE_URL_EXPIRATION_S AWS_CONSOLE_URL_EXPIRATION_LOCAL
-		else
-			_echoerr "ERROR: Unable to obtain a new console url."
-    	return 1
-		fi
-	# fi
-	echo $AWS_CONSOLE_URL
 }
 
 aws-assume-role () {
@@ -619,6 +561,122 @@ _aws_reset () {
 		k="TEMPORARY_AWS_PARAMETER_${i}"
 		unset $i $j $k
 	done
+}
+
+#
+# Help descriptions
+#
+_get_session_usage() {
+	echo "Usage: get_session [-h] [-s] [-r] [-l] [-c] [-d] [-p profile] [MFA token]"
+	echo ""
+	echo "    MFA token    Your one time token. If not provided, and you provided"
+	echo "                 the -s option, the current credentials are stored."
+	echo "    -p profile   The aws credentials profile to use as an auth base."
+	echo "                 The provided profile name will be cached, and be the"
+	echo "                 new default for subsequent calls to get_session."
+	echo "                 Current cached: $PROFILE"
+	echo "                 To avoid having to enter a profile every time, you can"
+	echo "                 use 'aws configure set default.session_tool_default_profile PROFILE'"
+	echo "    -s           Save the resulting session to persistent storage"
+	echo "                 for retrieval by other shells. You will be prompted"
+	echo "                 twice for a passphrase to protect the stored credentials."
+	echo "                 Note that storing with an empty passphrase does not work."
+	echo "    -r           Restore previously saved state. You will be promptet for"
+	echo "                 the passphrase you stated when storing the session."
+	echo "    -l           List currently stored sessions including a best guess on"
+	echo "                 when the session expires based on file modification time."
+	echo "    -c           Resets session, removing all environment variables."
+	echo "    -d           Download a list of organization-wide roles to a profile-"
+	echo "                 specific file ~/.aws/[profile]_session-tool_roles.cfg"
+	echo "                 These entries can be overwritten in ~/.aws/[profile]_roles.cfg"
+	echo "                 Fetching is done before getting the session token, using only"
+	echo "                 the permissions granted by the profile."
+	echo "                 Upstream location and name of the roles list are configurable."
+	echo "    -u           Uploads ~/.aws/[profile]_session-tool_roles.cfg to the"
+	echo "                 configured location. Requires more priviledges than download,"
+	echo "                 so is usually done after assume-role."
+	echo "    -v           Verifies that the current session (not profile) is valid"
+	echo "                 and not expired."
+	echo "    -h           Print this usage."
+	echo ""
+	echo "This command will on a successful authentication return session credentials"
+	echo "for the Basefarm main account. The credentials are returned in the form of"
+	echo "environment variables suitable for the aws and terraform cli. The returned"
+	echo "session has a duration of 12 hours."
+	echo ""
+	echo "At least one of -s, -r or MFA token needs to be provided."
+	echo ""
+	echo "Session state is stored in: ~/.aws/${PROFILE}.aes"
+	echo ""
+	echo "See also: get_console_url, assume_role."
+}
+_assume_role_usage () {
+	local ROLE_ALIAS_DEFAULT=${STORED_AWS_PARAMETER_AWS_ROLE_ALIAS:-'<no cached value>'}
+	echo "Usage: assume_role [-h] [-l] <role alias>"
+	echo ""
+	echo "    -h          Print this usage."
+	echo "    -l          List available role aliases."
+	echo "    role alias  The alias of the role to assume."
+	echo "                The alias name will be cached, so subsequent calls to"
+	echo "                assume_role or get_console_url will use the cached value."
+	echo "                Current cached default: $ROLE_ALIAS_DEFAULT"
+	echo ""
+	echo "This command will use session credentials stored in the shell"
+	echo "from previous calls to get_session The session credentials are"
+	echo "then used to assume the given role."
+	echo ""
+	echo "This command will also set the AWS_CONSOLE_URL containing a"
+	echo "pre-signed url for console access."
+	echo ""
+	echo "The session credentials for the assumed role will replace the"
+	echo "current session in the shell environment. The only way to retrieve"
+	echo "the current session after an assume_role is to have stored your"
+	echo "session using get_session with the -s option and then to"
+	echo "import them again using get_session -r command."
+	echo ""
+	echo "The assumed role credentials will only be valid for one hour,"
+	echo "this is a limitation in the underlaying AWS assume_role function."
+	echo ""
+	echo "Roles are configured in locally in ~/.aws/${AWS_PROFILE}_roles.cfg, and"
+	echo "organization-wide in ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg. The format of that file"
+	echo "is as follows. Comment lines begin with #. No other type of comments"
+	echo "are allowed. One line per role and each line is space separated."
+	echo "The role alias is a name you choose as a shortname for the role."
+	echo "external_id is optional."
+	echo ""
+	echo "Alias role_arn session_name external_id"
+	echo ""
+	echo "Example:"
+	echo "# Roles for assume_role"
+	echo "# Alias role_arn session_name external_id"
+	echo "bf-awsopslab-admin arn:aws:iam::1234567890:role/admin bf-awsopslab-admin BF-AWSOpsLab"
+	echo "foo-test arn:aws:iam::0987654321:role/admin bf-awsopslab-admin"
+	echo ""
+	echo "See also: get_session, get_console_url."
+}
+_get_console_url_usage () {
+	local ROLE_ALIAS_DEFAULT=${STORED_AWS_PARAMETER_AWS_ROLE_ALIAS:-'<no cached value>'}
+	echo "Usage: get_console_url [-h] [-l] <role alias>"
+	echo ""
+	echo "    -h          Print this usage."
+	echo "    -l          List available role aliases."
+	echo "    role alias  The alias of the role that will temporarily be assumed."
+	echo "                The alias name will be cached, so subsequent calls to"
+	echo "                assume_role or get_console_url will use the cached value."
+	echo "                Current cached default: $ROLE_ALIAS_DEFAULT"
+	echo ""
+	echo "This command will use session credentials stored in the shell"
+	echo "from previous calls to get_session The session credentials are"
+	echo "then used to temporily assume the given role for the purpose of"
+	echo "obtaining the console URL."
+	echo ""
+	echo "After this, the session credentials from previous calls to get_session"
+	echo "or assume_role will be restored."
+	echo "The console URL will only be valid for one hour,"
+	echo "this is a limitation in the underlaying AWS assume_role function."
+	echo ""
+	echo "See also: get_session, assume_role. The help for assume_role has more"
+	echo "information about roles definitions and files."
 }
 
 # Execute _prereq to actually verify:
