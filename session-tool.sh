@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.3.4
+VERSION=1.3.5
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -14,6 +14,8 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 #
 # It should work well with terraform, using the assume_role
 # function of the aws provider.
+# Please refer to the repository wiki for more documentation regarding
+# S3 buckets, policies and rolefiles
 #
 
 #
@@ -34,9 +36,9 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 # test, grep, egrep, awk and sed.
 #
 
-# Please refer to the
-
+# 
 # Verify all prerequisites, and initialize arrays etc
+# 
 _prereq () {
 	type curl >/dev/null 2>&1 || echo >&2 "ERROR: curl is not found. session_tools will not work."
 	case $OSTYPE in
@@ -62,65 +64,12 @@ _prereq () {
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_CONSOLE_URL AWS_CONSOLE_URL_EXPIRATION AWS_CONSOLE_URL_EXPIRATION_S AWS_CONSOLE_URL_EXPIRATION_LOCAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
 
-# Utility for errormessages
-_echoerr() { cat <<< "$@" 1>&2; }
-
-#
-# Utility to urlencode a string
-#
-_rawurlencode() {
-	local string="${1}"
-	local strlen=${#string}
-	local encoded=""
-
-	for (( pos=0 ; pos<strlen ; pos++ )); do
-		c=${string:$pos:1}
-		case "$c" in
-			[-_.~a-zA-Z0-9]	) o="${c}" ;;
-			* 							)	printf -v o '%%%02x' "'$c"
-		 esac
-		 encoded+="${o}"
-	done
-	echo "${encoded}"
-}
-
-_session_not_ok () {
-	local NOW=$(date +%s)
-	if [ -z "${AWS_EXPIRATION_LOCAL}" ]; then
-		_echoerr "ERROR: You do not seem to have a valid session in your environment."
-		return 0
-	fi
-	if [ ${AWS_EXPIRATION_S} -lt $NOW ]; then
-		_echoerr "ERROR: Your ${AWS_PROFILE} session expired at ${AWS_EXPIRATION_LOCAL}."
-		return 0
-	fi
-
-	return 1
-}
-
-
-# Local function for looking up stuff the first time this utilitie is used in a shell
-# Assume AWS_PROFILE is set
-_init_aws () {
-
-	local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
-	local SERIAL="${USER/:user/:mfa}"
-
-	if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
-		export AWS_USER=$USER
-		export AWS_SERIAL=$SERIAL
-	else
-		_echoerr "ERROR: Unable to obtain AWS user ARN using the profile: $AWS_PROFILE"
-		_echoerr "DEBUG: USER=$USER"
-		_echoerr "DEBUG: SERIAL=$SERIAL"
-		return 1
-	fi
-}
-
-
+# Command for creating a session
 get_session() {
 	
-	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false
+	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false ; local STOREONLY=false
+	# Ugly hack to support people who want to store their sessions retroactively
+	if test "$*" = "-s" ; then STOREONLY=true ; fi
 
 	# extract options and their arguments into variables. Help and List are dealt with directly
 	while getopts ":cdhlp:rsuv" opt ; do
@@ -155,200 +104,201 @@ get_session() {
 			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
 	done
-	shift $((OPTIND-1))
-	if test -z ${PROFILE} ; then
-		if aws configure list | grep -q '<not set>' ; then
-			_echoerr "ERROR: No profile specified and no default profile configured."
-			return 1
-		else
-			${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
-		fi
-	fi
-	if aws configure list --profile $PROFILE &>/dev/null ; then
-		export AWS_PROFILE="${PROFILE}"
-	else
-		_echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
-		return 1
-	fi
-
-	# Fetch roles from specified bucket - if it is configured....
-	if ${DOWNLOAD} ; then
-		if ${UPLOAD} ; then
-			_echoerr "ERROR: uploading and downloading are mutually exclusive..."
-			return 1
-		else
-			local ROLEBUCKET
-			if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
-				_echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
+	if ! ${STOREONLY} ; then
+		shift $((OPTIND-1))
+		if test -z ${PROFILE} ; then
+			if aws configure list | grep -q '<not set>' ; then
+				_echoerr "ERROR: No profile specified and no default profile configured."
 				return 1
+			else
+				${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
 			fi
-			local ROLESFILE
-			if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
-				if ! aws s3 ls "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
-					_echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
+		fi
+		if aws configure list --profile $PROFILE &>/dev/null ; then
+			export AWS_PROFILE="${PROFILE}"
+		else
+			_echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
+			return 1
+		fi
+
+		# Fetch roles from specified bucket - if it is configured....
+		if ${DOWNLOAD} ; then
+			if ${UPLOAD} ; then
+				_echoerr "ERROR: uploading and downloading are mutually exclusive..."
+				return 1
+			else
+				local ROLEBUCKET
+				if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
+					_echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
 					return 1
+				fi
+				local ROLESFILE
+				if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
+					if ! aws s3 ls "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
+						_echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
+						return 1
+					else
+						ROLESFILE="session-tool_roles.cfg"
+					fi
+				fi
+				if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" | grep -q ${ROLESFILE} ; then
+					_echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
+					return 1
+				fi
+				if out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>&1)" ; then
+					return 0
 				else
-					ROLESFILE="session-tool_roles.cfg"
+					_echoerr "ERROR: ${out}"
+					_echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+					return 1
 				fi
 			fi
-			if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" | grep -q ${ROLESFILE} ; then
-				_echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
+		fi
+
+		if ${UPLOAD} ; then
+			if ${DOWNLOAD} ; then
+				_echoerr "ERROR: uploading and downloading are mutually exclusive..."
 				return 1
-			fi
-			if out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>&1)" ; then
-				return 0
 			else
-				_echoerr "ERROR: ${out}"
-				_echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
-				return 1
+				local ROLEBUCKET
+				if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
+					_echoerr "ERROR: No bucket configure to upload roles to. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
+					return 1
+				fi
+				if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
+					_echoerr "ERROR: please configure the rolesfile to upload: aws configure set session-tool_rolesfile <ROLESFILE> --profile ${AWS_PROFILE}"
+					return 1
+				fi
+				if ! test -r ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ; then
+					_echoerr "ERROR: missing file to upload ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+					return 1
+				fi
+				aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}"
+				return 0
 			fi
 		fi
-	fi
+		
+		# Verify session
+		if $VERIFY; then
+			if [ $# -gt 0 ]; then
+				_echoerr "ERROR: Please don't combine verify with other operations."
+				return 1
+			fi
+			if test "${AWS_SESSION_TOKEN}" = "" ; then
+				_echoerr "ERROR: No session token found, so there is nothing to validate."
+				return 1
+			fi
 
-	if ${UPLOAD} ; then
-		if ${DOWNLOAD} ; then
-		  _echoerr "ERROR: uploading and downloading are mutually exclusive..."
-			return 1
-		else
-			local ROLEBUCKET
-			if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
-				_echoerr "ERROR: No bucket configure to upload roles to. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
+			_pushp TEMP_AWS_PARAMETERS
+			_popp STORED_AWS_PARAMETERS
+			local response="$(aws sts get-caller-identity 2>&1)"
+			_popp TEMP_AWS_PARAMETERS
+
+			if echo "${response}" | grep -q "security token included in the request is expired" ; then
+				_echoerr "ERROR: Your session has expired"
+				return 1
+			else
+				return 0
+			fi
+		fi
+
+		# Restore session
+		if $RESTORE; then
+			if $STORE; then
+				_echoerr "ERROR: You can not both store and restore state in the same run."
 				return 1
 			fi
-			if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
-				_echoerr "ERROR: please configure the rolesfile to upload: aws configure set session-tool_rolesfile <ROLESFILE> --profile ${AWS_PROFILE}"
+			if [ $# -gt 0 ]; then
+				_echoerr "ERROR: You can only combine restore with the profile option."
 				return 1
 			fi
-			if ! test -r ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ; then
-				_echoerr "ERROR: missing file to upload ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+
+			if [ ! -e ~/.aws/${AWS_PROFILE}.aes ]; then
+				_echoerr "ERROR: No saved session found for profile $AWS_PROFILE."
 				return 1
 			fi
-			aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}"
+
+			local CREDENTIALS=$($_OPENSSL aes-256-cbc -d -in ~/.aws/${AWS_PROFILE}.aes)
+			if echo "$CREDENTIALS" | egrep -qv "^AWS_"; then
+				_echoerr "ERROR: Unable to restore your credentials."
+				return 1
+			fi
+
+			_pushp TEMP_AWS_PARAMETERS
+			_aws_reset
+			eval "$CREDENTIALS"
+			if _session_not_ok; then
+			_popp TEMP_AWS_PARAMETERS
+				return 1
+			fi
+
+			local NOW=$(date +%s)
+			local EXP_HOUR=$(($AWS_EXPIRATION_S + 3600))
+
+			if [ $EXP_HOUR -lt $NOW ]; then
+				echo "WARNING: Your $AWS_PROFILE stored session will expire at $AWS_EXPIRATION_LOCAL."
+			fi
+
+			local CREDS=$(echo "$CREDENTIALS" | sed 's/^/export /')
+			eval "$CREDS"
+			for i in ${AWS_PARAMETERS} ; do
+				export i
+			done
+			_pushp STORED_AWS_PARAMETERS
 			return 0
 		fi
-	fi
-	
-	# Verify session
-	if $VERIFY; then
-		if [ $# -gt 0 ]; then
-			_echoerr "ERROR: Please don't combine verify with other operations."
-			return 1
+
+		# Making new session, with optional MFA
+		if [ -z "$AWS_USER" ]; then
+			_init_aws
 		fi
-		if test "${AWS_SESSION_TOKEN}" = "" ; then
-			_echoerr "ERROR: No session token found, so there is nothing to validate."
-			return 1
+		if [ "${AWS_PROFILE}" != "${AWS_PROFILE_STORED}" ] ; then
+			_init_aws
 		fi
 
 		_pushp TEMP_AWS_PARAMETERS
-		_popp STORED_AWS_PARAMETERS
-		local response="$(aws sts get-caller-identity 2>&1)"
-		_popp TEMP_AWS_PARAMETERS
+		local CREDTXT
+		# If there is an MFA, then it should be numeric and used for the sts get-session-token call
+		if [ -n "$1" ]; then
+			# Verify the MFA token code, AWS currently only support 6 numbers
+			local re='^[0-9][0-9][0-9][0-9][0-9][0-9]$'
+			if ! [[ "$1" =~ $re ]]; then
+				_echoerr "ERROR: MFA token code can only consist of 6 numbers."
+				return 1
+			fi
 
-		if echo "${response}" | grep -q "security token included in the request is expired" ; then
-			_echoerr "ERROR: Your session has expired"
-			return 1
+			local MFA=$1
+			read CREDTXT AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $(aws --output text --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA)
+
 		else
-			return 0
+			read CREDTXT AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $(aws --output text --profile $AWS_PROFILE sts get-session-token)
+			_echoerr "# Warning: you did not input an MFA token. Proceed at your own risk."
 		fi
-	fi
 
-	# Restore session
-	if $RESTORE; then
-		if $STORE; then
-			_echoerr "ERROR: You can not both store and restore state in the same run."
-			return 1
-		fi
-		if [ $# -gt 0 ]; then
-			_echoerr "ERROR: You can only combine restore with the profile option."
+		if [ -z "$AWS_SESSION_TOKEN" ]; then
+			_echoerr "ERROR: Unable to obtain session"
+			_popp TEMP_AWS_PARAMETERS
 			return 1
 		fi
 
-		if [ ! -e ~/.aws/${AWS_PROFILE}.aes ]; then
-			_echoerr "ERROR: No saved session found for profile $AWS_PROFILE."
-			return 1
-		fi
+		case $OSTYPE in
+			darwin*)
+				export AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
+				export AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
+			linux*)
+				export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
+				export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
+			cygwin*)
+				export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
+				export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
+			*)
+			_echoerr "ERROR: Unknown ostype: $OSTYPE"
+			_popp TEMP_AWS_PARAMETERS
+			return 1;;
+		esac
 
-		local CREDENTIALS=$($_OPENSSL aes-256-cbc -d -in ~/.aws/${AWS_PROFILE}.aes)
-		if echo "$CREDENTIALS" | egrep -qv "^AWS_"; then
-			_echoerr "ERROR: Unable to restore your credentials."
-			return 1
-		fi
-
-		_pushp TEMP_AWS_PARAMETERS
-		_aws_reset
-		eval "$CREDENTIALS"
-		if _session_not_ok; then
-		_popp TEMP_AWS_PARAMETERS
-			return 1
-		fi
-
-		local NOW=$(date +%s)
-		local EXP_HOUR=$(($AWS_EXPIRATION_S + 3600))
-
-		if [ $EXP_HOUR -lt $NOW ]; then
-			echo "WARNING: Your $AWS_PROFILE stored session will expire at $AWS_EXPIRATION_LOCAL."
-		fi
-
-		local CREDS=$(echo "$CREDENTIALS" | sed 's/^/export /')
-		eval "$CREDS"
-		for i in ${AWS_PARAMETERS} ; do
-			export i
-		done
 		_pushp STORED_AWS_PARAMETERS
-		return 0
 	fi
-
-	# Making new session, with optional MFA
-	if [ -z "$AWS_USER" ]; then
-		_init_aws
-	fi
-	if [ "${AWS_PROFILE}" != "${AWS_PROFILE_STORED}" ] ; then
-		_init_aws
-	fi
-
-	_pushp TEMP_AWS_PARAMETERS
-	local CREDTXT
-	# If there is an MFA, then it should be numeric and used for the sts get-session-token call
-	if [ -n "$1" ]; then
-		# Verify the MFA token code, AWS currently only support 6 numbers
-		local re='^[0-9][0-9][0-9][0-9][0-9][0-9]$'
-		if ! [[ "$1" =~ $re ]]; then
-			_echoerr "ERROR: MFA token code can only consist of 6 numbers."
-			return 1
-		fi
-
-		local MFA=$1
-		read CREDTXT AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $(aws --output text --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA)
-
-	else
-		read CREDTXT AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $(aws --output text --profile $AWS_PROFILE sts get-session-token)
-	  _echoerr "# Warning: you did not input an MFA token. Proceed at your own risk."
-	fi
-
-	if [ -z "$AWS_SESSION_TOKEN" ]; then
-		_echoerr "ERROR: Unable to obtain session"
-		_popp TEMP_AWS_PARAMETERS
-		return 1
-	fi
-
-	case $OSTYPE in
-		darwin*)
-			export AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
-			export AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
-		linux*)
-			export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
-			export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
-		cygwin*)
-			export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
-			export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
-		*)
-		_echoerr "ERROR: Unknown ostype: $OSTYPE"
-		_popp TEMP_AWS_PARAMETERS
-		return 1;;
-	esac
-
-	_pushp STORED_AWS_PARAMETERS
-
 
 	# Store if requested
 	if $STORE ; then
@@ -697,5 +647,59 @@ _get_console_url_usage () {
 	echo "information about roles definitions and files."
 }
 
-# Execute _prereq to actually verify:
+# Utility for errormessages
+_echoerr() { cat <<< "$@" 1>&2; }
+
+# Utility to urlencode a string
+_rawurlencode() {
+	local string="${1}"
+	local strlen=${#string}
+	local encoded=""
+
+	for (( pos=0 ; pos<strlen ; pos++ )); do
+		c=${string:$pos:1}
+		case "$c" in
+			[-_.~a-zA-Z0-9]	) o="${c}" ;;
+			* 							)	printf -v o '%%%02x' "'$c"
+		 esac
+		 encoded+="${o}"
+	done
+	echo "${encoded}"
+}
+
+# Utility functino for checking if there is a current session which has not expired
+_session_not_ok () {
+	local NOW=$(date +%s)
+	if [ -z "${AWS_EXPIRATION_LOCAL}" ]; then
+		_echoerr "ERROR: You do not seem to have a valid session in your environment."
+		return 0
+	fi
+	if [ ${AWS_EXPIRATION_S} -lt $NOW ]; then
+		_echoerr "ERROR: Your ${AWS_PROFILE} session expired at ${AWS_EXPIRATION_LOCAL}."
+		return 0
+	fi
+
+	return 1
+}
+
+
+# Utility for initializing variables the first time this utilitie is used in a shell
+# Assumes AWS_PROFILE is set
+_init_aws () {
+
+	local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
+	local SERIAL="${USER/:user/:mfa}"
+
+	if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
+		export AWS_USER=$USER
+		export AWS_SERIAL=$SERIAL
+	else
+		_echoerr "ERROR: Unable to obtain AWS user ARN using the profile: $AWS_PROFILE"
+		_echoerr "DEBUG: USER=$USER"
+		_echoerr "DEBUG: SERIAL=$SERIAL"
+		return 1
+	fi
+}
+
+# Main loop. Execute _prereq to actually verify prerequisites:
 _prereq
