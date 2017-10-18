@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.3.5
+VERSION=1.3.6
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -61,7 +61,7 @@ _prereq () {
 	PUBVERSION="$(curl -s "${PUBURL}" | grep ^VERSION= | head -n 1 | cut -d '=' -f 2)"
 	test "${PUBVERSION}" = "${VERSION}" || echo >&2 "WARN: Your version is outdated! You have ${VERSION}, the latest is ${PUBVERSION}"
 	
-	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_CONSOLE_URL AWS_CONSOLE_URL_EXPIRATION AWS_CONSOLE_URL_EXPIRATION_S AWS_CONSOLE_URL_EXPIRATION_LOCAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
+	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
 
 # Command for creating a session
@@ -227,7 +227,7 @@ get_session() {
 			_pushp TEMP_AWS_PARAMETERS
 			_aws_reset
 			eval "$CREDENTIALS"
-			if _session_not_ok; then
+			if ! _session_ok; then
 			_popp TEMP_AWS_PARAMETERS
 				return 1
 			fi
@@ -358,11 +358,9 @@ get_console_url () {
 		local URL="https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${ENCODED_SESSION}"
 		local SIGNIN_TOKEN=$(curl --silent ${URL} | python -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
 		local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
-		export AWS_CONSOLE_URL="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
-		_popp TEMP_AWS_PARAMETERS AWS_CONSOLE_URL 
-		echo $AWS_CONSOLE_URL
+		echo "https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
+		_popp TEMP_AWS_PARAMETERS
 	else
-		_echoerr "ERROR: Unable to obtain a new console url."
 		return 1
 	fi
 	# fi
@@ -405,8 +403,9 @@ _list_roles () {
 	fi
 }
 _sts_assume_role () {
-	if _session_not_ok; then
-		return $?
+	if ! _session_ok STORED ; then
+		((DBG)) && echo $STORED_AWS_PARAMETER_EXPIRATION_LOCAL
+		return 1
 	fi
 
 	_pushp TEMP_AWS_PARAMETERS
@@ -668,18 +667,45 @@ _rawurlencode() {
 }
 
 # Utility functino for checking if there is a current session which has not expired
-_session_not_ok () {
+_session_ok () {
 	local NOW=$(date +%s)
-	if [ -z "${AWS_EXPIRATION_LOCAL}" ]; then
-		_echoerr "ERROR: You do not seem to have a valid session in your environment."
-		return 0
-	fi
-	if [ ${AWS_EXPIRATION_S} -lt $NOW ]; then
-		_echoerr "ERROR: Your ${AWS_PROFILE} session expired at ${AWS_EXPIRATION_LOCAL}."
-		return 0
-	fi
+	case $1 in 
+		store* | STORE* )
+				if [ -z "${STORED_AWS_PARAMETER_AWS_EXPIRATION_LOCAL}" ]; then
+					_echoerr "ERROR: You do not seem to have a valid session in your environment."
+					return 1
+				fi
+				if [ ${STORED_AWS_PARAMETER_AWS_EXPIRATION_S} -lt $NOW ]; then
+					_echoerr "ERROR: Your ${STORED_AWS_PARAMETER_AWS_PROFILE} session expired at ${STORED_AWS_PARAMETER_AWS_EXPIRATION_LOCAL}."
+					return 1
+				fi
+				;;
+		temp* | TEMP* )
+				if [ -z "${TEMP_AWS_PARAMETER_AWS_EXPIRATION_LOCAL}" ]; then
+					_echoerr "ERROR: You do not seem to have a valid session in your environment."
+					return 1
+				fi
+				if [ ${TEMP_AWS_PARAMETER_AWS_EXPIRATION_S} -lt $NOW ]; then
+					_echoerr "ERROR: Your ${TEMP_AWS_PARAMETER_AWS_PROFILE} session expired at ${TEMP_AWS_PARAMETER_AWS_EXPIRATION_LOCAL}."
+					return 1
+				fi
+				;;
+		"" | current )
+				if [ -z "${AWS_EXPIRATION_LOCAL}" ]; then
+					_echoerr "ERROR: You do not seem to have a valid session in your environment."
+					return 1
+				fi
+				if [ ${AWS_EXPIRATION_S} -lt $NOW ]; then
+					_echoerr "ERROR: Your ${AWS_PROFILE} session expired at ${AWS_EXPIRATION_LOCAL}."
+					return 1
+				fi
+				;;
+		* )
+			_echoerr "FATAL: Unexpected internal error trying to validate the $* session."
+			return 1 ;;
+	esac
 
-	return 1
+	return 0
 }
 
 

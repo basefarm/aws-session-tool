@@ -67,22 +67,11 @@ This command will use session credentials stored in the shell
 from previous calls to get_session The session credentials are
 then used to assume the given role.
 
-This command will also set the AWS_CONSOLE_URL containing a
-pre-signed url for console access.
-
-The session credentials for the assumed role will replace the
-current session in the shell environment. The only way to retrieve
-the current session after an assume_role is to have stored your
-session using get_session with the -s option and then to
-import them again using get_session -r command.
-
 The assumed role credentials will only be valid for one hour,
 this is a limitation in the underlaying AWS assume_role function.
 
 The selected role alias will be cached in the AWS_ROLE_ALIAS environment
 variable, so you do not have to provide it on subsequent calls to assume_role.
-
-Roles are configured in ~/.aws/roles.cfg in addition to the company-wide roles.
 
 ## get_console_url
 
@@ -107,14 +96,14 @@ It is included only to provide backwards compatibility.
 
 # Files
 
-## ~/.aws/bf-roles.cfg
+## ~/.aws/[profile]_session-tool_roles.cfg
 
-This file contains the predefined roles that you may assume given your Basefarm main
-account credentials, assuming you are member of the proper groups.
+This file contains the predefined roles that you may assume given the credentials
+in your profile, assuming you are member of the proper groups.  
 Updates to this file can be retrieved using `get_session -f`. 
 
-## ~/.aws/roles.cfg
-This file contains your personalized overrides and additions to `bf-roles.cfg`
+## ~/.aws/[profile]_roles.cfg
+This file contains your personalized overrides and additions to `[profile]_session-tool_roles.cfg`
 Lines starting with a # are treated as comments. All other
 lines must contain a roles definition line. Each line is a space separated
 list containing these elements:
@@ -133,11 +122,10 @@ The tree first are mandatory, while `external_id` is optional, end the line afte
 
 # Prerequisites
 
-You must have a user in the Basefarm main account. This user must be able to
-assume roles in the needed customer account or other Basefarm accounts. You must
-have this credentials profile stored in your `~.aws/credentials` file. This is
-usually done using the `aws configure` command.
-
+You must have an IAM user with credentials profile stored in your `~.aws/credentials` file.
+This is usually done using the `aws configure` command.
+The list of roles are downloaded (`get_session -d -p <PROFILENAME>`) from an S3 bucket configured like this: `aws configure set session-tool_bucketname <BUCKETNAME> --profile <PROFILENAME>`. This of course requires that your IAM user credentials allow access to the bucket.  
+If you have a profile which you normally use, you can set it as the default choice for session-tool with `aws configure set default.session_tool_default_profile <PROFILENAME>`
 These commands assume that you have a profile called *awsops*. You might use a
 different name, but must then provide the profile name when initializing
 a session.
