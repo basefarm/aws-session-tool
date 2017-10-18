@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.4.0
+VERSION=1.4.1
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -145,9 +145,7 @@ get_session() {
 					_echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
 					return 1
 				fi
-				if out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>&1)" ; then
-					return 0
-				else
+				if ! out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>&1)" ; then
 					_echoerr "ERROR: ${out}"
 					_echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
 					return 1
@@ -174,7 +172,6 @@ get_session() {
 					return 1
 				fi
 				aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}"
-				return 0
 			fi
 		fi
 		
@@ -487,6 +484,7 @@ _dumpp () {
 
 # Push the current parameters into an array
 _pushp () {
+	local i j k
 	for i in ${AWS_PARAMETERS} ; do
 		case $1 in 
 			store* | STORE* )
@@ -503,6 +501,7 @@ _pushp () {
 
 # Pop an array into the current parameters, skipping the listed parameters
 _popp () {
+	local i j k
 	for i in ${AWS_PARAMETERS} ; do
 		if ! [[ "$* " == *"${i} "* ]] ; then
 			case $1 in 
@@ -523,6 +522,7 @@ _popp () {
 # Clean up the user environment and remove every trace of an aws session
 #
 _aws_reset () {
+	local i j k
 	for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
 		j="STORED_AWS_PARAMETER_${i}"
 		k="TEMPORARY_AWS_PARAMETER_${i}"
