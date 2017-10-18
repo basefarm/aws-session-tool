@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.3.6
+VERSION=1.4.0
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -727,5 +727,42 @@ _init_aws () {
 	fi
 }
 
-# Main loop. Execute _prereq to actually verify prerequisites:
+_bashcompletion_sessionhandling () {
+    local cur prev
+    COMPREPLY=()   # Array variable storing the possible completions.
+    cur=${COMP_WORDS[COMP_CWORD]}
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    if [[ ${cur} == -* ]] ; then
+        opts="-h -s -r -l -c -d -p"
+        COMPREPLY=( $(compgen -W "$opts" -- $cur ) )
+        return 0
+    fi
+    if [[ ${prev} == -p ]] ; then
+        profiles=`egrep '^\[profile ' ~/.aws/config | awk '{ print $2}' | sed 's/\]//'`
+        COMPREPLY=( $(compgen -W "$profiles" -- $cur ) )
+        return 0
+    fi
+    return 0
+}
+
+_bashcompletion_rolehandling ()  {
+    local cur
+    COMPREPLY=()   # Array variable storing the possible completions.
+    cur=${COMP_WORDS[COMP_CWORD]}
+
+    local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
+
+    roles=`find ~/.aws -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'`
+
+    COMPREPLY=( $(compgen -W "$roles" -- $cur ) )
+    return 0
+}
+
+# Main loop.
+# Execute _prereq to actually verify prerequisites:
 _prereq
+# Configure bash completetion
+complete -F _bashcompletion_sessionhandling get_session
+complete -F _bashcompletion_rolehandling get_console_url
+complete -F _bashcompletion_rolehandling assume_role
