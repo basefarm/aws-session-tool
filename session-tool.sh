@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.4.1
+VERSION=1.4.2
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -293,7 +293,7 @@ get_session() {
 			_popp TEMP_AWS_PARAMETERS
 			return 1;;
 		esac
-
+		export AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 		_pushp STORED_AWS_PARAMETERS
 	fi
 

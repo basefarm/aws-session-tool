@@ -122,7 +122,7 @@ The tree first are mandatory, while `external_id` is optional, end the line afte
 
 # Prerequisites
 
-You must have an IAM user with credentials profile stored in your `~.aws/credentials` file.
+You must have an IAM user with credentials profile stored in your `~/.aws/credentials` file.
 This is usually done using the `aws configure` command.
 The list of roles are downloaded (`get_session -d -p <PROFILENAME>`) from an S3 bucket configured like this: `aws configure set session-tool_bucketname <BUCKETNAME> --profile <PROFILENAME>`. This of course requires that your IAM user credentials allow access to the bucket.  
 If you have a profile which you normally use, you can set it as the default choice for session-tool with `aws configure set default.session_tool_default_profile <PROFILENAME>`
@@ -179,10 +179,10 @@ aws configure --profile awsops
 The user starts by initializing a session, providing his MFA token:
 
 ```sh
-get_session -f 123456
+get_session -d 123456
 ```
 
-Note that the `-f` flag is used to ensure that company-wide roles are updated.
+Note that the `-d` flag is used to ensure that organization-wide roles are updated.
 The user now has his environment populated with AWS variables that are
 suitable to for example run terraform (with assume_role).
 
@@ -261,11 +261,14 @@ ERROR: Unable to obtain session
 ```
 # Known issues
 
-* If you do not have an awsops profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
+* If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
 * The assume_role command is only able to create sessions that last for one hour. This is an AWS limitation. Once the session has expired, you must re-authenticate or manually restore a previously saved session.
-* It is considered best practice to use the build in assume role support in terraform, so you would for terraform purposes only use the get_session command.
+* It is considered best practice to use the built-in assume-role support in terraform, so for terraform purposes you would only use the get_session command. ... and maybe get_console_url when you have trouble figuring out what just got applied
 * Some AWS CLI commands require Python 3 (https://www.linkedin.com/pulse/aws-cli-requires-python3-bent-terp)
 
 # Authors
-Initial work by [Daniel Abrahamsson](https://github.com/danabr) and [Bent Terp](https://github.com/bentterp), adapted and re-worked by
-[Bjørn Røgeberg](https://github.com/bjornrog) and [Bent Terp](https://github.com/bentterp).
+Initial work by [Daniel Abrahamsson](https://github.com/danabr) and [Bent Terp](https://github.com/bentterp), adapted and re-worked by [Bjørn Røgeberg](https://github.com/bjornrog) and [Bent Terp](https://github.com/bentterp).
+
+# License
+
+This software is available under the MIT license, as included in the LICENSE file.
