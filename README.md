@@ -2,13 +2,22 @@
 
 This is a bash shell tool for maintaining AWS credentials in one or more shells.
 
+# TL;DR
+
+```sh
+. ./session-tool.sh
+aws configure set default.session_tool_default_profile <PROFILENAME>
+aws configure set session-tool_bucketname <BUCKETNAME> --profile <PROFILENAME>
+get_session -s -d <MFACODE>
+get_console_url <TAB>
+```
+
 # Synopsis
 
 ```sh
 source session-tool.sh
 ```
 This can be added to your `.profile`, `.bashrc` or similar.
-
 
 # Usage
 
@@ -100,7 +109,7 @@ It is included only to provide backwards compatibility.
 
 This file contains the predefined roles that you may assume given the credentials
 in your profile, assuming you are member of the proper groups.  
-Updates to this file can be retrieved using `get_session -f`. 
+Updates to this file can be retrieved using `get_session -d`. 
 
 ## ~/.aws/[profile]_roles.cfg
 This file contains your personalized overrides and additions to `[profile]_session-tool_roles.cfg`
