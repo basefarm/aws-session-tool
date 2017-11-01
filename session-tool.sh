@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.4.2
+SESSION_TOOL_VERSION=1.4.3
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -59,7 +59,7 @@ _prereq () {
 	[[ `ps -fp $$ | grep $$` =~ "bash" ]] || echo >&2 "ERROR: SHELL is not bash. session_tools will not work."
 
 	PUBVERSION="$(curl -s "${PUBURL}" | grep ^VERSION= | head -n 1 | cut -d '=' -f 2)"
-	test "${PUBVERSION}" = "${VERSION}" || echo >&2 "WARN: Your version is outdated! You have ${VERSION}, the latest is ${PUBVERSION}"
+	test "${PUBVERSION}" = "${SESSION_TOOL_VERSION}" || echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
 	
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
@@ -265,13 +265,21 @@ get_session() {
 			fi
 
 			local MFA=$1
-			read CREDTXT AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $(aws --output text --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA)
-
+			local JSON=$(aws --output json --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA )
 		else
-			read CREDTXT AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $(aws --output text --profile $AWS_PROFILE sts get-session-token)
+			local JSON=$(aws --output json --profile $AWS_PROFILE sts get-session-token )
+			# When not using MFA, it is usually by mistake so we issue a warning
 			_echoerr "# Warning: you did not input an MFA token. Proceed at your own risk."
 		fi
-
+		if [ -z "$JSON" ]; then
+			_echoerr "ERROR: Unable to obtain session"
+			return 1
+		fi
+		local JSON_NORM=$(echo $JSON | python -mjson.tool)
+		AWS_SECRET_ACCESS_KEY=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')
+		AWS_SESSION_TOKEN=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "SessionToken") print $4}')
+		AWS_ACCESS_KEY_ID=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
+		AWS_EXPIRATION=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "Expiration") print $4}')
 		if [ -z "$AWS_SESSION_TOKEN" ]; then
 			_echoerr "ERROR: Unable to obtain session"
 			_popp TEMP_AWS_PARAMETERS
@@ -434,8 +442,20 @@ _sts_assume_role () {
 		return 1
 	fi
 
-	read tmp ASSUMED_ARN ASSUMED_ROLE tmp2 AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $( if [ -z "$EXTERNAL_ID" ]; then aws --output text sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION_NAME}" ; else aws --output text sts assume-role --role-arn ${ROLE_ARN} --role-session-name ${SESSION_NAME} --external-id ${EXTERNAL_ID} ; fi )
-	
+	if [ -z "$EXTERNAL_ID" ]; then
+		local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$SESSION_NAME")
+	else
+		local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$SESSION_NAME" --external-id "$EXTERNAL_ID")
+	fi
+	if [ -z "$JSON" ]; then
+		_echoerr "ERROR: Unable to obtain session"
+		return 1
+	fi
+	local JSON_NORM=$(echo $JSON | python -mjson.tool)
+	AWS_SECRET_ACCESS_KEY=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')
+	AWS_SESSION_TOKEN=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "SessionToken") print $4}')
+	AWS_ACCESS_KEY_ID=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
+	AWS_EXPIRATION=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "Expiration") print $4}')
 	if [ -z "$AWS_SESSION_TOKEN" ]; then
 		_echoerr "ERROR: Unable to obtain session"
 		_popp TEMP_AWS_PARAMETERS

@@ -131,6 +131,7 @@ The tree first are mandatory, while `external_id` is optional, end the line afte
 
 # Prerequisites
 
+You must have an up-to-date version of the AWS CLI installed on top of Python 3.
 You must have an IAM user with credentials profile stored in your `~/.aws/credentials` file.
 This is usually done using the `aws configure` command.
 The list of roles are downloaded (`get_session -d -p <PROFILENAME>`) from an S3 bucket configured like this: `aws configure set session-tool_bucketname <BUCKETNAME> --profile <PROFILENAME>`. This of course requires that your IAM user credentials allow access to the bucket.  
