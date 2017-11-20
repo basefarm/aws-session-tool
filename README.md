@@ -225,21 +225,21 @@ Then he need to access the AWS management console:
 get_console_url
 ```
 The returned URL can then be pasted into a browser to gain temporary access to
-the management console in the context of the assumed account.
+the management console in the context of the assumed account.  
 
 Because the user first ran the assume_role command, the get_console_url will
 just echo the AWS_CONSOLE_URL environment variable and the console session will
-only last until the assume_role session expires.
+only last until the assume_role session expires.  
 
 At any time (both for the Basefarm main account session and the assume_role
 session) the user can query the AWS_EXPIRATION_LOCAL variable to get the end
-time of the current session.
+time of the current session.  
 
 Once the assume_role session is expired (after one hour), the credentials are no
 longer valid and the user must either re-authenticate or restore a previously
-saved session.
+saved session.  
 
-## (Long) Example with multiple calls to assume_role
+## (Long) Example with multiple calls to assume_role  
 
 Since we store a copy of the credentials returned by get_session, we can re-use them for doing
 multiple calls of assume_role and get_console_url:
@@ -268,17 +268,21 @@ ERROR: Unable to obtain session
 [bent@c7vm ~]$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
 "bf-awsopslab"
 [bent@c7vm ~]
-```
-# Known issues
+```  
+# Known issues  
 
 * If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
 * The assume_role command is only able to create sessions that last for one hour. This is an AWS limitation. Once the session has expired, you must re-authenticate or manually restore a previously saved session.
 * It is considered best practice to use the built-in assume-role support in terraform, so for terraform purposes you would only use the get_session command. ... and maybe get_console_url when you have trouble figuring out what just got applied
 * Some AWS CLI commands require Python 3 (https://www.linkedin.com/pulse/aws-cli-requires-python3-bent-terp)
 
-# Authors
+# Authors  
 Initial work by [Daniel Abrahamsson](https://github.com/danabr) and [Bent Terp](https://github.com/bentterp), adapted and re-worked by [Bjørn Røgeberg](https://github.com/bjornrog) and [Bent Terp](https://github.com/bentterp).
 
-# License
+# Feedback  
 
-This software is available under the MIT license, as included in the LICENSE file.
+Please open an issue if you have some feedback for us.  
+
+# License  
+
+This software is available under the MIT license, as included in the LICENSE file.  
