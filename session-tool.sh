@@ -9,7 +9,7 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 # 3) constructing a URL for assuming a role from the session token, but for accessing
 #    the AWS console instead.
 # 4) maintain a list of roles from a configurable bucket, using the same credentials.
-#
+# 5) facilitate the rotation of credentials, ie password and access keys.
 # The utility is supposed to work on both linux and mac.
 #
 # It should work well with terraform, using the assume_role
@@ -778,6 +778,48 @@ _bashcompletion_rolehandling ()  {
     COMPREPLY=( $(compgen -W "$roles" -- $cur ) )
     return 0
 }
+
+function _rotate_credentials_usage () {
+	echo "Usage: rotate_credentials [-p PROFILE] [-y|-n]"
+	echo "  -p PROFILE   Which AWS credentials profile should be rotated."
+	echo "               If not specified, the default profile for session-tool will be used."
+	echo "               Otherwise, the profile named 'default' will be used."
+	echo "  -y           Yes, password should also changed."
+	echo "  -n           No, password should not be changed."
+	echo "               If neither -y nor -n is specified, you will be asked whether or not"
+  echo "	             password should be changed."
+}
+
+function rotate_credentials() {
+	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local CHANGEPW=false; local NOTCHANGEPW=false
+	# extract options and their arguments into variables. Help is dealt with directly
+	while getopts ":yhp:n" opt ; do
+		case "$opt" in
+			h		) _rotate_credentials_usage ; return 0 ;;
+			y		) CHANGEPW=true ;;
+			n   ) NOTCHANGEPW ;;
+			p		) PROFILE=$OPTARG ;;
+			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+		esac
+	done
+	shift $((OPTIND-1))
+	if test -z ${PROFILE} ; then
+		if aws configure list | grep -q '<not set>' ; then
+			_echoerr "ERROR: No profile specified and no default profile configured."
+			return 1
+		else
+			${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
+		fi
+	fi
+	if aws configure list --profile $PROFILE &>/dev/null ; then
+		export AWS_PROFILE="${PROFILE}"
+	else
+		_echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
+		return 1
+	fi
+}
+
 
 # Main loop.
 # Execute _prereq to actually verify prerequisites:
