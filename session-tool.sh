@@ -779,11 +779,40 @@ _bashcompletion_rolehandling ()  {
     return 0
 }
 
+function _gen_awspw() {
+	local pwok=0
+	local mylen="${1:-16}"
+	if test ${mylen} -lt 16 ; then mylen=16 ; fi
+	local spcchar='@#$%^*()_+-=[]{}'
+
+	until (( pwok )) ; do
+		local pw="$(openssl rand -base64 $((${mylen}+2)) )"
+		local pwsub="$(openssl rand -hex 1)"
+		local pwplace="$(openssl rand -hex 1)"
+		pw="${pw:0:$((0x${pwplace:0:1}))}${spcchar:$((0x${pwsub:0:1})):1}${pw:$((0x${pwplace:0:1}+1))}"
+		pw="${pw:0:$((0x${pwplace:1:1}))}${spcchar:$((0x${pwsub:1:1})):1}${pw:$((0x${pwplace:1:1}+1))}"
+		pw="${pw:0:${mylen}}"
+		local digit="$(echo $pw | tr -cd 0-9)"
+		local lower="$(echo $pw | tr -cd a-z)"
+		local upper="$(echo $pw | tr -cd A-Z)"
+		if test ${#digit} -ge 2 ; then 
+			if test ${#lower} -ge 2 ; then
+				if test ${#upper} -ge 2 ; then 
+					pwok=1
+				fi
+			fi
+		fi
+	done
+	echo "${pw}"
+}
+
 function _rotate_credentials_usage () {
 	echo "Usage: rotate_credentials [-p PROFILE] [-y|-n]"
 	echo "  -p PROFILE   Which AWS credentials profile should be rotated."
 	echo "               If not specified, the default profile for session-tool will be used."
 	echo "               Otherwise, the profile named 'default' will be used."
+	echo "  -t           Rotate both sets of keys. One set will be stored in the profile,"
+	echo "               the other set shown on the terminal. More info in the wiki."
 	echo "  -y           Yes, password should also changed."
 	echo "  -n           No, password should not be changed."
 	echo "               If neither -y nor -n is specified, you will be asked whether or not"
@@ -791,14 +820,15 @@ function _rotate_credentials_usage () {
 }
 
 function rotate_credentials() {
-	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local CHANGEPW=false; local NOTCHANGEPW=false
+	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local CHANGEPW=0; local NOTCHANGEPW=0 ; local MAXAGE=80 ; local TWOKEYS=0
 	# extract options and their arguments into variables. Help is dealt with directly
-	while getopts ":yhp:n" opt ; do
+	while getopts ":yhtp:n" opt ; do
 		case "$opt" in
 			h		) _rotate_credentials_usage ; return 0 ;;
-			y		) CHANGEPW=true ;;
-			n   ) NOTCHANGEPW ;;
+			y		) CHANGEPW=1 ;;
+			n   ) NOTCHANGEPW=1 ;;
 			p		) PROFILE=$OPTARG ;;
+			t   ) TWOKEYS=1 ;;
 			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
 			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
@@ -812,12 +842,136 @@ function rotate_credentials() {
 			${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
 		fi
 	fi
-	if aws configure list --profile $PROFILE &>/dev/null ; then
-		export AWS_PROFILE="${PROFILE}"
-	else
+	if ! aws configure list --profile $PROFILE &>/dev/null ; then
 		_echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
 		return 1
 	fi
+
+	local JSON="$(aws iam get-user --profile ${PROFILE})"
+	local MYUSERID="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
+	if test "${MYUSERID:0:4}" != "AIDA" ; then
+	  _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
+		return 1
+	fi
+
+	if test `aws iam list-access-keys --profile awsops --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
+		if ! (( TWOKEYS )) ; then
+			_echoerr "WARNING: This user already has two sets of access keys. If you wish to rotate both sets, please use the -t flag - but be aware, that the second set of keys will be displayed here on the screen. More information in the wiki."
+			return 1
+		else
+			MYKEY="$(aws configure get aws_access_key_id --profile ${PROFILE})"
+			if test "${MYKEY:0:4}" != "AKIA" ; then
+	 			_echoerr "ERROR: Unable to retrieve a valid access_key_id for profile ${PROFILE}, unsafe to continue."
+			fi
+			for k in `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text` ; do
+				if test $k != ${MYKEY} ; then
+					aws iam delete-access-key --access-key-id ${k} --profile ${PROFILE}
+				fi
+			done
+		fi
+	fi
+
+	local JSON="$(aws iam create-access-key --profile ${PROFILE})"
+	NEWKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
+	NEWSECRETKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
+	if test "${NEWKEY:0:4}" != "AKIA" ; then
+	  _echoerr "ERROR: Unable to create valid credentials for profile ${PROFILE}, unsafe to continue."
+		return 1
+	fi
+	# echo "${NEWKEY} : ${NEWSECRETKEY}"
+	MYPROFILE="${PROFILE}" NEWUSERID="$(export AWS_ACCESS_KEY_ID="${NEWKEY}" ; export AWS_SECRET_ACCESS_KEY="${NEWSECRETKEY}" ; unset AWS_SESSION_TOKEN ; aws iam get-user --query "User.UserId" --output text --profile ${MYPROFILE})"
+	# echo $MYTESTUSERID
+	if test "${MYUSERID}" != "${NEWUSERID}" ; then
+	  _echoerr "ERROR: Something went very wrong, the new access key does not map to the user. Highly unsafe to continue. Please investigate using the AWS Console."
+		return 1
+	fi	
+
+	# echo "# Rollback:"
+	# echo "aws configure set aws_access_key_id \"$(aws configure get aws_access_key_id --profile ${PROFILE})\" --profile ${PROFILE}"
+	# echo "aws configure set aws_secret_access_key \"$(aws configure get aws_secret_access_key --profile ${PROFILE})\" --profile ${PROFILE}"
+	aws configure set aws_access_key_id "${NEWKEY}" --profile ${PROFILE}
+	aws configure set aws_secret_access_key "${NEWSECRETKEY}" --profile ${PROFILE}
+	# echo "# ----"
+	# echo "aws configure set aws_access_key_id \"$(aws configure get aws_access_key_id --profile ${PROFILE})\" --profile ${PROFILE}"
+	# echo "aws configure set aws_secret_access_key \"$(aws configure get aws_secret_access_key --profile ${PROFILE})\" --profile ${PROFILE}"
+
+	local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
+	if ! echo $JSON  | python -mjson.tool &>/dev/null ; then
+		echo -n "# Waiting up to 30 secs for IAM to sync "
+		for i in `seq 1 30` ; do
+			local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
+			if echo $JSON  | python -mjson.tool &>/dev/null ; then
+				break
+			fi
+			echo -n "." ; sleep 1s
+		done
+	fi
+
+  local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
+	local MYUSERID="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
+	if test "${MYUSERID:0:4}" != "AIDA" ; then
+	  _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
+		_echoerr "Please submit a bug report including the below information"
+		_echoerr "Raw JSON output: \"${JSON}\""
+		return 1
+	fi
+
+	aws iam delete-access-key --access-key-id "${MYKEY}" --profile ${PROFILE}
+	MYKEY="${NEWKEY}" ; MYSECRETKEY="${NEWSECRETKEY}"
+
+	if (( TWOKEYS )) ; then
+		local JSON="$(aws iam create-access-key --profile ${PROFILE} 2>/dev/null)"
+		if ! echo $JSON  | python -mjson.tool &>/dev/null ; then
+			echo -n "# Again, waiting up to 30 secs for IAM to sync "
+			for i in `seq 1 30` ; do
+				local JSON="$(aws iam create-access-key --profile ${PROFILE} 2>/dev/null)"
+				if echo $JSON  | python -mjson.tool &>/dev/null ; then
+					break
+				fi
+				echo -n "." ; sleep 1s
+			done
+		fi
+		NEWKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
+		NEWSECRETKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
+		if test "${NEWKEY:0:4}" != "AKIA" ; then
+	  	_echoerr "ERROR: Unable to create a second set of valid credentials for profile ${PROFILE}, unsafe to continue."
+			_echoerr "Please submit a bug report including the below information"
+			_echoerr "Raw JSON output: \"${JSON}\""			return 1
+		fi
+		echo
+		echo "# Second key set generated. Manual configuration like this:"
+		echo "aws configure set aws_access_key_id ${NEWKEY} --profile ${PROFILE}"
+		echo "aws configure set aws_secret_access_key ${NEWSECRETKEY} --profile ${PROFILE}"
+	fi
+
+	if  (( NOTCHANGEPW )) ; then
+	  if (( CHANGEPW )) ; then
+			_echoerr "ERROR: -y and -n are mutually exclusive options, please don't specify both."
+		fi
+	else
+		if ! (( CHANGEPW )) ; then
+			echo
+			read -r -p "Do you wish to change your password also? [y/N] " response
+			case "$response" in
+    		[yY][eE][sS]|[yY]) 
+	        CHANGEPW=1
+  	      ;;
+    		*)
+        	CHANGEPW=0
+        	;;
+			esac
+		fi
+		if (( CHANGEPW )) ; then
+			echo
+			read -r -p "Please enter your old password: " OLDPW
+			NEWPW="$(_gen_awspw)"
+			aws iam change-password --old-password "${OLDPW}" --new-password "${NEWPW}" --profile ${PROFILE}
+			echo
+			echo "Your new password is \"${NEWPW}\""
+		fi
+	fi
+	echo
+	echo "# Finished"
 }
 
 
