@@ -5,7 +5,7 @@ This is a bash shell tool for maintaining AWS credentials in one or more shells.
 # TL;DR
 
 ```sh
-. ./session-tool.sh
+source ./session-tool.sh
 aws configure set default.session_tool_default_profile <PROFILENAME>
 aws configure set session-tool_bucketname <BUCKETNAME> --profile <PROFILENAME>
 get_session -s -d <MFACODE>
