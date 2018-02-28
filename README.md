@@ -49,9 +49,11 @@ for managing your AWS session credentials. This is useful for `terraform` and
                   Fetching is done before getting the session token, using only
                   the permissions granted by the profile.
                   Upstream location and name of the roles list are configurable.
+		  Cannot be combined with other options.
 * `-u`            Uploads ~/.aws/[profile]_session-tool_roles.cfg to the
 	                configured location. Requires more priviledges than download,
 	                so is usually done after assume-role.
+			Cannot be combined with other options.
 * `-h`            Print this usage.
 
 This command will on a successful authentication return
