@@ -149,6 +149,9 @@ get_session() {
 					_echoerr "ERROR: ${out}"
 					_echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
 					return 1
+				else
+					echo "# Roles downloaded"
+					return 0
 				fi
 			fi
 		fi
@@ -172,6 +175,8 @@ get_session() {
 					return 1
 				fi
 				aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}"
+				echo "# Roles uploaded"
+				return 0
 			fi
 		fi
 		
