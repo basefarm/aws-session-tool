@@ -40,26 +40,26 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 # Verify all prerequisites, and initialize arrays etc
 # 
 _prereq () {
-	type curl >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work."
+	type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
 	case $OSTYPE in
 		darwin*	) _OPENSSL="/usr/bin/openssl";;
 		linux*	) _OPENSSL="openssl";;
 		cygwin*	) _OPENSSL="openssl";;
 		*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
 	esac
-	type $_OPENSSL >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: openssl is not found. session_tools will not work."
-	type date >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: date is not found. session_tools will not work."
-	type aws >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: aws is not found. session_tools will not work."
-	type python >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: python is not found. session_tools will not work."
-	python -c "import json.tool" >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: python json.tool is not found. session_tools will not work."
-	type grep >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: grep is not found. session_tools will not work."
-	type egrep >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: egrep is not found. session_tools will not work."
-	type awk  >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: awk is not found. session_tools will not work."
-	type sed >/dev/null 2>&1 || [[ $- =~ i ]] && echo >&2 "ERROR: sed is not found. session_tools will not work."
+	type $_OPENSSL >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: openssl is not found. session_tools will not work." ; }
+	type date >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: date is not found. session_tools will not work." ; }
+	type aws >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: aws is not found. session_tools will not work." ; }
+	type python >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: python is not found. session_tools will not work." ; }
+	python -c "import json.tool" >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: python json.tool is not found. session_tools will not work." ; }
+	type grep >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: grep is not found. session_tools will not work." ; }
+	type egrep >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: egrep is not found. session_tools will not work." ; }
+	type awk  >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: awk is not found. session_tools will not work." ; }
+	type sed >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: sed is not found. session_tools will not work." ; }
 	[[ `ps -fp $$ | grep $$` =~ "bash" ]] || echo >&2 "ERROR: SHELL is not bash. session_tools will not work."
 
 	PUBVERSION="$(curl -s "${PUBURL}" | grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
-	test "${PUBVERSION}" = "${SESSION_TOOL_VERSION}" || echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
+	test "${PUBVERSION}" = "${SESSION_TOOL_VERSION}" || { [[ $- =~ i ]] && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}" ; }
 	
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
