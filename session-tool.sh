@@ -47,6 +47,7 @@ _prereq () {
 		cygwin*	) _OPENSSL="openssl";;
 		*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
 	esac
+
 	type $_OPENSSL >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: openssl is not found. session_tools will not work." ; }
 	type date >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: date is not found. session_tools will not work." ; }
 	type aws >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: aws is not found. session_tools will not work." ; }
@@ -56,7 +57,19 @@ _prereq () {
 	type egrep >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: egrep is not found. session_tools will not work." ; }
 	type awk  >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: awk is not found. session_tools will not work." ; }
 	type sed >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: sed is not found. session_tools will not work." ; }
-	[[ `ps -fp $$ | grep $$` =~ "bash" ]] || echo >&2 "ERROR: SHELL is not bash. session_tools will not work."
+	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
+	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
+	type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
+	type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
+	type aws >/dev/null 2>&1 || echo >&2 "ERROR: aws is not found. session_tools will not work."
+	type python >/dev/null 2>&1 || echo >&2 "ERROR: python is not found. session_tools will not work."
+	python -c "import json.tool" >/dev/null 2>&1 || echo >&2 "ERROR: python json.tool is not found. session_tools will not work."
+	type grep >/dev/null 2>&1 || echo >&2 "ERROR: grep is not found. session_tools will not work."
+	type egrep >/dev/null 2>&1 || echo >&2 "ERROR: egrep is not found. session_tools will not work."
+	type awk  >/dev/null 2>&1 || echo >&2 "ERROR: awk is not found. session_tools will not work."
+	type sed >/dev/null 2>&1 || echo >&2 "ERROR: sed is not found. session_tools will not work."
+	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
+	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 
 	PUBVERSION="$(curl -s "${PUBURL}" | grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
 	test "${PUBVERSION}" = "${SESSION_TOOL_VERSION}" || { [[ $- =~ i ]] && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}" ; }
