@@ -1,5 +1,5 @@
 #!/bin/bash
-SESSION_TOOL_VERSION=1.4.6
+SESSION_TOOL_VERSION=1.4.7
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -71,8 +71,9 @@ _prereq () {
 	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 
-	PUBVERSION="$(curl -s "${PUBURL}" | grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
-	test "${PUBVERSION}" = "${SESSION_TOOL_VERSION}" || { [[ $- =~ i ]] && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}" ; }
+	PUBVERSION="$(if ! timeout 2s curl -s "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
+
+	test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
 	
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
@@ -996,9 +997,16 @@ function rotate_credentials() {
 
 
 # Main loop.
-# Execute _prereq to actually verify prerequisites:
-_prereq
-# Configure bash completetion
-complete -F _bashcompletion_sessionhandling get_session
-complete -F _bashcompletion_rolehandling get_console_url
-complete -F _bashcompletion_rolehandling assume_role
+case $- in
+*i*)    # interactive shell
+  # Execute _prereq to actually verify prerequisites:
+  _prereq
+  # Configure bash completetion
+  complete -F _bashcompletion_sessionhandling get_session
+  complete -F _bashcompletion_rolehandling get_console_url
+  complete -F _bashcompletion_rolehandling assume_role
+  ;;
+*)      # non-interactive shell
+  ;;
+esac
+
