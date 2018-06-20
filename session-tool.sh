@@ -1,5 +1,5 @@
 #!/bin/bash
-SESSION_TOOL_VERSION=1.4.7
+SESSION_TOOL_VERSION=1.4.8
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -71,7 +71,7 @@ _prereq () {
 	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 
-	PUBVERSION="$(if ! timeout 2s curl -s "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
+	PUBVERSION="$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
 
 	test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
 	
