@@ -6,10 +6,10 @@ This is a bash shell tool for maintaining AWS credentials in one or more shells.
 
 ```sh
 source ./session-tool.sh
-aws configure set default.session_tool_default_profile <PROFILENAME>
-aws configure set session-tool_bucketname <BUCKETNAME> --profile <PROFILENAME>
-get_session -s -d <MFACODE>
+get_session -i <api keys csv file> -d
+get_session -s <MFACODE>
 get_console_url <TAB>
+assume_role <TAB>
 ```
 
 # Synopsis
