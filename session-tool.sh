@@ -36,6 +36,10 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 # test, grep, egrep, awk and sed.
 #
 
+# Defaults:
+DEFAULT_PROFILE='awsops'
+DEFAULT_BUCKET='bf-aws-tools-session-tool'
+
 # 
 # Verify all prerequisites, and initialize arrays etc
 # 
@@ -86,7 +90,7 @@ get_session() {
 	if test "$*" = "-s" ; then STOREONLY=true ; fi
 
 	# extract options and their arguments into variables. Help and List are dealt with directly
-	while getopts ":cdhlp:rsuv" opt ; do
+	while getopts ":cdhlp:rsuvi:b:" opt ; do
 		case "$opt" in
 			h		) _get_session_usage ; return 0 ;;
 			c		) _aws_reset ; return 0 ;;
@@ -114,13 +118,46 @@ get_session() {
 			d		) DOWNLOAD=true ;;
 			u		) UPLOAD=true ;;
 			v		) VERIFY=true ;;
+		        i		) IMPORT=$OPTARG ;;
+		        b		) BUCKET=$OPTARG ;;
 			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
 			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
 	done
+
+
+
+	if test ! -z ${IMPORT} ; then
+	    # Import the key found in the file
+	    if test ! -e ${IMPORT}; then
+		_echoerr "ERROR: The file ${IMPORT} does not exist."
+		return 1
+	    fi
+	    if test -z "${PROFILE}"; then
+		# As this is import, possibly for the first time, let's assume the user wants the awsops profile
+		PROFILE=${DEFAULT_PROFILE}
+	    fi
+	    if test -z "${BUCKET}" -a ${PROFILE} = ${DEFAULT_PROFILE}; then
+		# As this is import, possibly for the first time, let's assem the user wants to use the standard awsops bucket
+		BUCKET=${DEFAULT_BUCKET}
+	    fi
+	    if test -z "${BUCKET}"; then
+		_echoerr "ERROR: You are using a non-standard profile ($PROFILE) and have not provided a bucket name."
+	    fi
+
+	    _KEY_ID="$(tail -1 ${IMPORT} | awk -F, '{print $1}')"
+	    _KEY_SECRET="$(tail -1 ${IMPORT} | awk -F, '{print $2}')"
+	    unset AWS_PROFILE
+	    aws configure --profile "${PROFILE}" set aws_access_key_id "${_KEY_ID}"
+	    aws configure --profile "${PROFILE}" set aws_secret_access_key "${_KEY_SECRET}"
+	    # TODO: This will set the default profile for session tool. If using a multiple profiles
+	    # the user might not want to change his default profile...
+	    aws configure set default.session_tool_default_profile "${PROFILE}"
+	    aws configure set session-tool_bucketname "${BUCKET}" --profile "${PROFILE}"
+	fi
 	if ! ${STOREONLY} ; then
 		shift $((OPTIND-1))
-		if test -z ${PROFILE} ; then
+		if test -z "${PROFILE}" ; then
 			if aws configure list | grep -q '<not set>' ; then
 				_echoerr "ERROR: No profile specified and no default profile configured."
 				return 1
@@ -605,6 +642,8 @@ _get_session_usage() {
 	echo "                 other options."
 	echo "    -v           Verifies that the current session (not profile) is valid"
 	echo "                 and not expired."
+	echo "    -i file      Import csv file containing api key into your aws profile."
+	echo "                 This will create or replace your api key in the awsops profile."
 	echo "    -h           Print this usage."
 	echo ""
 	echo "This command will on a successful authentication return session credentials"
@@ -775,7 +814,7 @@ _bashcompletion_sessionhandling () {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     if [[ ${cur} == -* ]] ; then
-        opts="-h -s -r -l -c -d -p"
+        opts="-h -s -r -l -c -d -p -i -b"
         COMPREPLY=( $(compgen -W "$opts" -- $cur ) )
         return 0
     fi
@@ -784,6 +823,11 @@ _bashcompletion_sessionhandling () {
         COMPREPLY=( $(compgen -W "$profiles" -- $cur ) )
         return 0
     fi
+    if [[ ${prev} == -i ]] ; then
+        COMPREPLY=( $(compgen -f -X "!*.csv" -- "${cur}") $( compgen -d -S / -- "$cur" ) )
+        return 0
+    fi
+
     return 0
 }
 
@@ -875,7 +919,7 @@ function rotate_credentials() {
 		return 1
 	fi
 
-	if test `aws iam list-access-keys --profile awsops --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
+	if test `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
 		if ! (( TWOKEYS )) ; then
 			_echoerr "WARNING: This user already has two sets of access keys. If you wish to rotate both sets, please use the -t flag - but be aware, that the second set of keys will be displayed here on the screen. More information in the wiki."
 			return 1
