@@ -27,7 +27,7 @@ for managing your AWS session credentials. This is useful for `terraform` and
 
 ## get_session
 
-`get_session [-h] [-s] [-r] [-l] [-c] [-d] [-u] [-p profile] [MFA token]`
+`get_session [-h] [-s] [-r] [-l] [-c] [-d] [-u] [-p profile] [-i file -b bucket] [MFA token]`
 
  * `MFA token`    Your one time token. If not provided, and you provided
                   the -s option, the current credentials are stored.
