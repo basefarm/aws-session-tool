@@ -644,6 +644,8 @@ _get_session_usage() {
 	echo "                 and not expired."
 	echo "    -i file      Import csv file containing api key into your aws profile."
 	echo "                 This will create or replace your api key in the awsops profile."
+	echo "    -b bucket    Set bucket name during import for roles file."
+	echo "                 Default: $DEFAULT_BUCKET"
 	echo "    -h           Print this usage."
 	echo ""
 	echo "This command will on a successful authentication return session credentials"

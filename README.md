@@ -54,6 +54,9 @@ for managing your AWS session credentials. This is useful for `terraform` and
 	                configured location. Requires more priviledges than download,
 	                so is usually done after assume-role.
 			Cannot be combined with other options.
+* `-i file`	  Import csv file containing api key into your aws profile.
+      		  This will create or replace your api key in the awsops profile.
+* `-b bucket`	  Set bucket name during import for roles file.
 * `-h`            Print this usage.
 
 This command will on a successful authentication return
