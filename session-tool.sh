@@ -85,12 +85,12 @@ _prereq () {
 # Command for creating a session
 get_session() {
 	
-	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false ; local STOREONLY=false
+	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
 	# Ugly hack to support people who want to store their sessions retroactively
 	if test "$*" = "-s" ; then STOREONLY=true ; fi
 
 	# extract options and their arguments into variables. Help and List are dealt with directly
-	while getopts ":cdhlp:rsuvi:b:" opt ; do
+	while getopts ":cdhlp:rsuvi:b:e" opt ; do
 		case "$opt" in
 			h		) _get_session_usage ; return 0 ;;
 			c		) _aws_reset ; return 0 ;;
@@ -120,6 +120,7 @@ get_session() {
 			v		) VERIFY=true ;;
 		        i		) IMPORT=$OPTARG ;;
 		        b		) BUCKET=$OPTARG ;;
+		        e		) EXPORT=true ;;
 			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
 			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
@@ -127,26 +128,35 @@ get_session() {
 
 
 
-	if test ! -z ${IMPORT} ; then
-	    # Import the key found in the file
-	    if test ! -e ${IMPORT}; then
-		_echoerr "ERROR: The file ${IMPORT} does not exist."
-		return 1
+	if [ ! -z "${IMPORT}" ]; then
+	    # Import the key found in the file or the variable it self
+	    if [ ! -e ${IMPORT} ]; then
+		_KEY_ID="$(echo ${IMPORT} | awk -F, '{print $1}')"
+		_KEY_SECRET="$(echo ${IMPORT} | awk -F, '{print $2}')"
+		if [ -z "${_KEY_ID}" -o -z "${_KEY_SECRET}" ]; then
+		    _echoerr "ERROR: The file ${IMPORT} does not exist and it does not contain a valid api key-pair."
+		    return 1
+		fi
+	    else
+		_KEY_ID="$(tail -1 ${IMPORT} | awk -F, '{print $1}')"
+		_KEY_SECRET="$(tail -1 ${IMPORT} | awk -F, '{print $2}')"
+		if [ -z "${_KEY_ID}" -o -z "${_KEY_SECRET}" ]; then
+		    _echoerr "ERROR: The file ${IMPORT} does not contain a valid api key-pair."
+		    return 1
+		fi
 	    fi
-	    if test -z "${PROFILE}"; then
+	    if [ -z "${PROFILE}" ]; then
 		# As this is import, possibly for the first time, let's assume the user wants the awsops profile
 		PROFILE=${DEFAULT_PROFILE}
 	    fi
-	    if test -z "${BUCKET}" -a ${PROFILE} = ${DEFAULT_PROFILE}; then
+	    if [ -z "${BUCKET}" -a ${PROFILE} = ${DEFAULT_PROFILE} ]; then
 		# As this is import, possibly for the first time, let's assem the user wants to use the standard awsops bucket
 		BUCKET=${DEFAULT_BUCKET}
 	    fi
-	    if test -z "${BUCKET}"; then
+	    if [ -z "${BUCKET}" ]; then
 		_echoerr "ERROR: You are using a non-standard profile ($PROFILE) and have not provided a bucket name."
 	    fi
 
-	    _KEY_ID="$(tail -1 ${IMPORT} | awk -F, '{print $1}')"
-	    _KEY_SECRET="$(tail -1 ${IMPORT} | awk -F, '{print $2}')"
 	    unset AWS_PROFILE
 	    aws configure --profile "${PROFILE}" set aws_access_key_id "${_KEY_ID}"
 	    aws configure --profile "${PROFILE}" set aws_secret_access_key "${_KEY_SECRET}"
@@ -154,6 +164,25 @@ get_session() {
 	    # the user might not want to change his default profile...
 	    aws configure set default.session_tool_default_profile "${PROFILE}"
 	    aws configure set session-tool_bucketname "${BUCKET}" --profile "${PROFILE}"
+	fi
+	if ${EXPORT} ; then
+	    if test -z "${PROFILE}" ; then
+		if aws configure list | grep -q '<not set>' ; then
+		    _echoerr "ERROR: No profile specified and no default profile configured."
+		    return 1
+		else
+		    ${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
+		fi
+	    fi
+	    if aws configure list --profile $PROFILE &>/dev/null ; then
+		export AWS_PROFILE="${PROFILE}"
+	    else
+		_echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
+		return 1
+	    fi
+	    _KEY_ID=$(aws configure --profile "${PROFILE}" get aws_access_key_id)
+	    _KEY_SECRET=$(aws configure --profile "${PROFILE}" get aws_secret_access_key)
+	    echo "get_session -p ${PROFILE} -i ${_KEY_ID},${_KEY_SECRET} -d && history -d \$((HISTCMD-1))"
 	fi
 	if ! ${STOREONLY} ; then
 		shift $((OPTIND-1))
@@ -439,7 +468,7 @@ _check_exists_rolefiles () {
 }
 _check_exists_profile () {
 	local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
-	if test -z $PROFILE ; then
+	if test -z "$PROFILE" ; then
 		return 1
 	fi
 }
@@ -901,7 +930,7 @@ function rotate_credentials() {
 		esac
 	done
 	shift $((OPTIND-1))
-	if test -z ${PROFILE} ; then
+	if test -z "${PROFILE}" ; then
 		if aws configure list | grep -q '<not set>' ; then
 			_echoerr "ERROR: No profile specified and no default profile configured."
 			return 1
