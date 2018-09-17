@@ -855,7 +855,7 @@ _bashcompletion_sessionhandling () {
         return 0
     fi
     if [[ ${prev} == -i ]] ; then
-        COMPREPLY=( $(compgen -f -X "!*.csv" -- "${cur}") $( compgen -d -S / -- "$cur" ) )
+        COMPREPLY=( $(compgen -f -o plusdirs -X '!*.csv' -- "${cur}") )
         return 0
     fi
 
