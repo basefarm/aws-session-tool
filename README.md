@@ -101,6 +101,25 @@ from previous calls to get_session. The session credentials are
 then used to assume the given role and finally to create
 a pre-signed URL for console access.
 
+## rotate_credentials
+
+`rotate_credentials [-p PROFILE] [-y|-n] [-t]`
+
+This command will rotate API keys and optionaly also set a new password.
+
+* `-p profile`   Which AWS credentials profile should be rotated.
+                 If not specified, the default profile for session-tool will be used.
+                 Otherwise, the profile named 'default' will be used.
+* `-t`           Rotate both sets of keys. One set will be stored in the profile,
+                 the other set shown on the terminal. More info in the wiki.
+* `-y`           Yes, password should also changed.
+* `-n`           No, password should not be changed.
+                 If neither -y nor -n is specified, you will be asked whether or not.
+                 password should be changed.
+
+After API key rotation, the command will output a command that can be ran on other hosts
+to import the new API key.
+
 ## aws-assume-role
 
 `aws-assume-role profile role_alias MFA_token`
