@@ -687,6 +687,7 @@ _get_session_usage() {
 	echo "Session state is stored in: ~/.aws/${PROFILE}.aes"
 	echo ""
 	echo "See also: get_console_url, assume_role, rotate_credentials."
+	echo "Version: $SESSION_TOOL_VERSION"
 }
 _assume_role_usage () {
 	local ROLE_ALIAS_DEFAULT=${STORED_AWS_PARAMETER_AWS_ROLE_ALIAS:-'<no cached value>'}
