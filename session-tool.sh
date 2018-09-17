@@ -40,9 +40,9 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 DEFAULT_PROFILE='awsops'
 DEFAULT_BUCKET='bf-aws-tools-session-tool'
 
-# 
+#
 # Verify all prerequisites, and initialize arrays etc
-# 
+#
 _prereq () {
 	type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
 	case $OSTYPE in
@@ -78,13 +78,13 @@ _prereq () {
 	PUBVERSION="$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
 
 	test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
-	
+
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
 
 # Command for creating a session
 get_session() {
-	
+
 	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
 	# Ugly hack to support people who want to store their sessions retroactively
 	if test "$*" = "-s" ; then STOREONLY=true ; fi
@@ -259,7 +259,7 @@ get_session() {
 				return 0
 			fi
 		fi
-		
+
 		# Verify session
 		if $VERIFY; then
 			if [ $# -gt 0 ]; then
@@ -481,7 +481,7 @@ _list_roles () {
 			return 1
 		fi
 	else
-		if [ ! -z "$(find ~/.aws -iname \*_roles.cfg)" ] ; then 
+		if [ ! -z "$(find ~/.aws -iname \*_roles.cfg)" ] ; then
 			echo "# INFO: No AWS_PROFILE specified (can be set by get_session, or a default profile"
 			echo "        can be defined with aws configure set default.session_tool_default_profile)"
 			echo "#       but some profiles were located, so showing all roles defined:"
@@ -576,7 +576,7 @@ aws-assume-role () {
 _dumpp () {
 	echo "# Parameter set:"
 	for i in ${AWS_PARAMETERS} ; do
-		case $1 in 
+		case $1 in
 			store* | STORE* )
 				printf "# %30s : %s\n" "${i}" "${STORED_AWS_PARAMETERS[$i]}" ;;
 			temp* | TEMP* )
@@ -591,7 +591,7 @@ _dumpp () {
 _pushp () {
 	local i j k
 	for i in ${AWS_PARAMETERS} ; do
-		case $1 in 
+		case $1 in
 			store* | STORE* )
 					j="STORED_AWS_PARAMETER_${i}" ;;
 			temp* | TEMP* )
@@ -609,7 +609,7 @@ _popp () {
 	local i j k
 	for i in ${AWS_PARAMETERS} ; do
 		if ! [[ "$* " == *"${i} "* ]] ; then
-			case $1 in 
+			case $1 in
 				store* | STORE* )
 					j="STORED_AWS_PARAMETER_${i}" ;;
 				temp* | TEMP* )
@@ -780,7 +780,7 @@ _rawurlencode() {
 # Utility functino for checking if there is a current session which has not expired
 _session_ok () {
 	local NOW=$(date +%s)
-	case $1 in 
+	case $1 in
 		store* | STORE* )
 				if [ -z "${STORED_AWS_PARAMETER_AWS_EXPIRATION_LOCAL}" ]; then
 					_echoerr "ERROR: You do not seem to have a valid session in your environment."
@@ -891,9 +891,9 @@ function _gen_awspw() {
 		local digit="$(echo $pw | tr -cd 0-9)"
 		local lower="$(echo $pw | tr -cd a-z)"
 		local upper="$(echo $pw | tr -cd A-Z)"
-		if test ${#digit} -ge 2 ; then 
+		if test ${#digit} -ge 2 ; then
 			if test ${#lower} -ge 2 ; then
-				if test ${#upper} -ge 2 ; then 
+				if test ${#upper} -ge 2 ; then
 					pwok=1
 				fi
 			fi
@@ -903,7 +903,7 @@ function _gen_awspw() {
 }
 
 function _rotate_credentials_usage () {
-	echo "Usage: rotate_credentials [-p PROFILE] [-y|-n]"
+	echo "Usage: rotate_credentials [-p PROFILE] [-y|-n] [-t]"
 	echo "  -p PROFILE   Which AWS credentials profile should be rotated."
 	echo "               If not specified, the default profile for session-tool will be used."
 	echo "               Otherwise, the profile named 'default' will be used."
@@ -980,7 +980,7 @@ function rotate_credentials() {
 	if test "${MYUSERID}" != "${NEWUSERID}" ; then
 	  _echoerr "ERROR: Something went very wrong, the new access key does not map to the user. Highly unsafe to continue. Please investigate using the AWS Console."
 		return 1
-	fi	
+	fi
 
 	# echo "# Rollback:"
 	# echo "aws configure set aws_access_key_id \"$(aws configure get aws_access_key_id --profile ${PROFILE})\" --profile ${PROFILE}"
@@ -993,7 +993,7 @@ function rotate_credentials() {
 
 	local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
 	if ! echo $JSON  | python -mjson.tool &>/dev/null ; then
-		echo -n "# Waiting up to 30 secs for IAM to sync "
+		echo -n "# Verifying your new key. Waiting up to 30 secs for IAM to sync "
 		for i in `seq 1 30` ; do
 			local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
 			if echo $JSON  | python -mjson.tool &>/dev/null ; then
@@ -1006,11 +1006,17 @@ function rotate_credentials() {
   local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
 	local MYUSERID="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
 	if test "${MYUSERID:0:4}" != "AIDA" ; then
+	    echo ""
 	  _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
 		_echoerr "Please submit a bug report including the below information"
 		_echoerr "Raw JSON output: \"${JSON}\""
 		return 1
+	else
+	    echo " done."
 	fi
+
+	echo "# Command to execute on other hosts to use the new api keys:"
+	echo "get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -d && history -d \$((HISTCMD-1))"
 
 	aws iam delete-access-key --access-key-id "${MYKEY}" --profile ${PROFILE}
 	MYKEY="${NEWKEY}" ; MYSECRETKEY="${NEWSECRETKEY}"
@@ -1027,6 +1033,7 @@ function rotate_credentials() {
 				echo -n "." ; sleep 1s
 			done
 		fi
+		echo ""
 		NEWKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
 		NEWSECRETKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
 		if test "${NEWKEY:0:4}" != "AKIA" ; then
@@ -1049,7 +1056,7 @@ function rotate_credentials() {
 			echo
 			read -r -p "Do you wish to change your password also? [y/N] " response
 			case "$response" in
-    		[yY][eE][sS]|[yY]) 
+    		[yY][eE][sS]|[yY])
 	        CHANGEPW=1
   	      ;;
     		*)
@@ -1066,7 +1073,6 @@ function rotate_credentials() {
 			echo "Your new password is \"${NEWPW}\""
 		fi
 	fi
-	echo
 	echo "# Finished"
 }
 
@@ -1084,4 +1090,3 @@ case $- in
 *)      # non-interactive shell
   ;;
 esac
-
