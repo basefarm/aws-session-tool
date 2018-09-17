@@ -277,7 +277,7 @@ ERROR: Unable to obtain session
 # Known issues  
 
 * If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
-* The assume_role command is only able to create sessions that last for one hour. This is an AWS limitation. Once the session has expired, you must re-authenticate or manually restore a previously saved session.
+* The assume_role command is only able to create sessions that last for one hour. This was an AWS limitation. Once the session has expired, you must re-authenticate or manually restore a previously saved session.
 * It is considered best practice to use the built-in assume-role support in terraform, so for terraform purposes you would only use the get_session command. ... and maybe get_console_url when you have trouble figuring out what just got applied
 * Some AWS CLI commands require Python 3 (https://www.linkedin.com/pulse/aws-cli-requires-python3-bent-terp)
 
