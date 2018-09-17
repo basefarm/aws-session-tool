@@ -82,6 +82,70 @@ _prereq () {
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
 
+
+
+_string_to_sec () {
+    case $OSTYPE in
+	darwin*)
+	    _S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $1 +%s)
+	    _LOCAL=$(date -j -r $_S);;
+	linux*)
+	    _S=$(date -d $1 +%s)
+	    _LOCAL=$(date -d $1);;
+	cygwin*)
+	    _S=$(date -d $1 +%s)
+	    _LOCAL=$(date -d $1);;
+	*)
+	    _echoerr "ERROR: Unknown ostype: $OSTYPE"
+	    return 1;;
+    esac
+    echo "$_S,$_LOCAL"
+}
+
+_sec_to_local () {
+    case $OSTYPE in
+	darwin*)
+	    _LOCAL=$(date -j -r $1);;
+	linux*)
+	    _LOCAL=$(date --date="@$1");;
+	cygwin*)
+	    _LOCAL=$(date --date="@$1");;
+	*)
+	    _echoerr "ERROR: Unknown ostype: $OSTYPE"
+	    return 1;;
+    esac
+    echo "$_LOCAL"
+}
+
+
+# Function to check age of API keys
+_age_check () {
+    local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE | python -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
+    local TS=$(_string_to_sec $CREATED)
+
+    local SEC=$(echo $TS | awk -F, '{print $1}')
+    local LOCAL=$(echo $TS | awk -F, '{print $2}')
+    local NOW=$(date +%s)
+
+#    local ALLOWED_AGE=$( expr 3600 \* 24 \* 60 )
+    local ALLOWED_AGE=$( expr 3600 \* 1 \* 1 )
+    local AGE=$( expr $NOW - $ALLOWED_AGE )
+
+    local MAX_AGE=$( expr $SEC + $ALLOWED_AGE )
+    local MAX_AGE_LOCAL=$(_sec_to_local $MAX_AGE)
+
+    RED='\033[0;31m'
+    NC='\033[0m'
+
+    if [ $SEC -lt $AGE ]; then
+	echo -e "${RED}WARNING:${NC} Your API key is older than 60 days."
+	echo "The key will expire on: $MAX_AGE_LOCAL"
+	echo "To rotate, run:"
+	echo "  rotate_credentials -n"
+    fi
+}
+
+
 # Command for creating a session
 get_session() {
 
@@ -337,6 +401,8 @@ get_session() {
 		if [ "${AWS_PROFILE}" != "${AWS_PROFILE_STORED}" ] ; then
 			_init_aws
 		fi
+
+		_age_check
 
 		_pushp TEMP_AWS_PARAMETERS
 		local CREDTXT
