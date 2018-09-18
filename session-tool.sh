@@ -929,6 +929,24 @@ _bashcompletion_sessionhandling () {
     return 0
 }
 
+_bashcompletion_rotate ()  {
+    local cur
+    COMPREPLY=()   # Array variable storing the possible completions.
+    cur=${COMP_WORDS[COMP_CWORD]}
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [[ ${cur} == -* ]] ; then
+        opts="-h -t -y -n -p"
+        COMPREPLY=( $(compgen -W "$opts" -- $cur ) )
+        return 0
+    fi
+    if [[ ${prev} == -p ]] ; then
+        profiles=`egrep '^\[profile ' ~/.aws/config | awk '{ print $2}' | sed 's/\]//'`
+        COMPREPLY=( $(compgen -W "$profiles" -- $cur ) )
+        return 0
+    fi
+    return 0
+}
+
 _bashcompletion_rolehandling ()  {
     local cur
     COMPREPLY=()   # Array variable storing the possible completions.
@@ -1153,6 +1171,7 @@ case $- in
   complete -F _bashcompletion_sessionhandling get_session
   complete -F _bashcompletion_rolehandling get_console_url
   complete -F _bashcompletion_rolehandling assume_role
+  complete -F _bashcompletion_rotate rotate_credentials
   ;;
 *)      # non-interactive shell
   ;;
