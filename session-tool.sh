@@ -127,16 +127,15 @@ _age_check () {
     local LOCAL=$(echo $TS | awk -F, '{print $2}')
     local NOW=$(date +%s)
 
-    local ALLOWED_AGE=$( expr 3600 \* 24 \* 60 )
-#    local ALLOWED_AGE=$( expr 3600 \* 1 \* 1 )
+#    local ALLOWED_AGE=$( expr 3600 \* 24 \* 60 )
+    local ALLOWED_AGE=$( expr 18 \* 1 \* 1 )
     local AGE=$( expr $NOW - $ALLOWED_AGE )
 
     local MAX_AGE=$( expr $SEC + $ALLOWED_AGE )
     local MAX_AGE_LOCAL=$(_sec_to_local $MAX_AGE)
 
-    RED='\033[0;31m'
-    NC='\033[0m'
-
+    RED=$(tput setaf 1)
+    NC=$(tput sgr0)
     if [ $SEC -lt $AGE ]; then
 	echo -e "${RED}WARNING:${NC} Your API key is older than 60 days."
 	echo "The key will expire on: $MAX_AGE_LOCAL"
@@ -1075,51 +1074,54 @@ function rotate_credentials() {
 	# echo "aws configure set aws_access_key_id \"$(aws configure get aws_access_key_id --profile ${PROFILE})\" --profile ${PROFILE}"
 	# echo "aws configure set aws_secret_access_key \"$(aws configure get aws_secret_access_key --profile ${PROFILE})\" --profile ${PROFILE}"
 
-	local JSON="$(AWS_REGION=eu-west-1 aws iam get-user --profile ${PROFILE} 2>/dev/null)"
-	if ! echo $JSON  | python -mjson.tool &>/dev/null ; then
-		echo -n "# Verifying your new key. Waiting up to 30 secs for IAM to sync "
-		for i in `seq 1 30` ; do
-			JSON="$(AWS_REGION=eu-west-1 aws iam get-user --profile ${PROFILE} 2>/dev/null)"
-			if echo $JSON  | python -mjson.tool &>/dev/null ; then
-			    break
-			fi
-			echo -n "." ; sleep 1s
-		done
-	fi
+	local prev='0'
+	local JSON=''
+	echo -n "# Verifying new key: 0"
+	for i in `seq 1 30` ; do
+	    tput cub $(echo -n "$prev" | wc -m)
+	    JSON="$(AWS_REGION=eu-west-1 aws iam get-user --profile ${PROFILE} 2>/dev/null)"
+	    if echo $JSON  | python -mjson.tool &>/dev/null ; then
+		break
+	    fi
+	    echo -n $i
+	    prev=$i
+	    sleep 1s
+	done
 
 	local MYUSERID="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
 	if test "${MYUSERID:0:4}" != "AIDA" ; then
-	    echo " failed."
+	    echo "Failed [$i]"
 	    _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
 	    _echoerr "Please submit a bug report including the below information"
 	    _echoerr "Raw JSON output: \"${JSON}\""
 	    return 1
 	else
-	    echo " done."
+	    echo "Done [$i]"
 	fi
 
-	local RES="$(AWS_REGION=eu-west-1 aws iam delete-access-key --access-key-id ${MYKEY} --profile ${PROFILE} 2>&1)"
-	if [ $? != 0 -o "$RES" != '' ]; then
-	    echo -n "# Waiting some more for IAM to sync ."
-	    for i in `seq 1 30` ; do
-		RES="$(AWS_REGION=eu-west-1 aws iam delete-access-key --access-key-id ${MYKEY} --profile ${PROFILE} 2>&1)"
-		if [ $? -eq 0 -a "$RES" = '' ]; then
-		    break
-		fi
-		if ! echo $RES | grep -q InvalidClientTokenId; then
-		    echo " failed."
-		    _echoerr "ERROR: Could not delete old access key ${MYKEY}."
-		    _echoerr "Root cause: $RES"
-		    _echoerr "Plese delete the old access key manually"
-		    return 1
-		fi
-		echo -n "." ; sleep 1s
-	    done
-	    echo " done."
-	fi
+	prev='0'
+	echo -n "# Deleting old key: 0"
+	for i in `seq 1 30` ; do
+	    tput cub $(echo -n "$prev" | wc -m)
+	    RES="$(AWS_REGION=eu-west-1 aws iam delete-access-key --access-key-id ${MYKEY} --profile ${PROFILE} 2>&1)"
+	    if [ $? -eq 0 -a "$RES" = '' ]; then
+		break
+	    fi
+	    if ! echo $RES | grep -q InvalidClientTokenId; then
+		echo "Failed [$i]"
+		_echoerr "ERROR: Could not delete old access key ${MYKEY}."
+		_echoerr "Root cause: $RES"
+		_echoerr "Please delete the old access key manually"
+		return 1
+	    fi
+	    echo -n $i
+	    prev=$i
+	    sleep 1s
+	done
+	echo "Done [$i]"
 
 	echo "# Command to execute on other hosts to use the new api keys:"
-	echo "get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -d && history -d \$((HISTCMD-1))"
+	echo " get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -d && history -d \$((HISTCMD-1))"
 
 	MYKEY="${NEWKEY}" ; MYSECRETKEY="${NEWSECRETKEY}"
 
