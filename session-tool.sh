@@ -1002,6 +1002,7 @@ function _rotate_credentials_usage () {
 
 function rotate_credentials() {
 	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local CHANGEPW=0; local NOTCHANGEPW=0 ; local MAXAGE=80 ; local TWOKEYS=0
+
 	# extract options and their arguments into variables. Help is dealt with directly
 	while getopts ":yhtp:n" opt ; do
 		case "$opt" in
@@ -1016,12 +1017,8 @@ function rotate_credentials() {
 	done
 	shift $((OPTIND-1))
 	if test -z "${PROFILE}" ; then
-		if aws configure list | grep -q '<not set>' ; then
-			_echoerr "ERROR: No profile specified and no default profile configured."
-			return 1
-		else
-			${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
-		fi
+	    _echoerr "ERROR: No profile specified and no default profile configured."
+	    return 1
 	fi
 	if ! aws configure list --profile $PROFILE &>/dev/null ; then
 		_echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
@@ -1035,15 +1032,16 @@ function rotate_credentials() {
 		return 1
 	fi
 
+        local MYKEY="$(aws configure get aws_access_key_id --profile ${PROFILE})"
+	if test "${MYKEY:0:4}" != "AKIA" ; then
+	    _echoerr "ERROR: Unable to retrieve a valid access_key_id for profile ${PROFILE}, unsafe to continue."
+	    return 1
+	fi
 	if test `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
 		if ! (( TWOKEYS )) ; then
 			_echoerr "WARNING: This user already has two sets of access keys. If you wish to rotate both sets, please use the -t flag - but be aware, that the second set of keys will be displayed here on the screen. More information in the wiki."
 			return 1
 		else
-			MYKEY="$(aws configure get aws_access_key_id --profile ${PROFILE})"
-			if test "${MYKEY:0:4}" != "AKIA" ; then
-	 			_echoerr "ERROR: Unable to retrieve a valid access_key_id for profile ${PROFILE}, unsafe to continue."
-			fi
 			for k in `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text` ; do
 				if test $k != ${MYKEY} ; then
 					aws iam delete-access-key --access-key-id ${k} --profile ${PROFILE}
@@ -1052,15 +1050,16 @@ function rotate_credentials() {
 		fi
 	fi
 
-	local JSON="$(aws iam create-access-key --profile ${PROFILE})"
-	NEWKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
-	NEWSECRETKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
+	local JSON="$(AWS_REGION=eu-west-1 aws iam create-access-key --profile ${PROFILE})"
+	local NEWKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
+	local NEWSECRETKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
 	if test "${NEWKEY:0:4}" != "AKIA" ; then
 	  _echoerr "ERROR: Unable to create valid credentials for profile ${PROFILE}, unsafe to continue."
 		return 1
 	fi
 	# echo "${NEWKEY} : ${NEWSECRETKEY}"
-	MYPROFILE="${PROFILE}" NEWUSERID="$(export AWS_ACCESS_KEY_ID="${NEWKEY}" ; export AWS_SECRET_ACCESS_KEY="${NEWSECRETKEY}" ; unset AWS_SESSION_TOKEN ; aws iam get-user --query "User.UserId" --output text --profile ${MYPROFILE})"
+	local MYPROFILE="${PROFILE}"
+	local NEWUSERID="$(export AWS_ACCESS_KEY_ID="${NEWKEY}" ; export AWS_SECRET_ACCESS_KEY="${NEWSECRETKEY}" ; unset AWS_SESSION_TOKEN ; aws iam get-user --query "User.UserId" --output text --profile ${MYPROFILE})"
 	# echo $MYTESTUSERID
 	if test "${MYUSERID}" != "${NEWUSERID}" ; then
 	  _echoerr "ERROR: Something went very wrong, the new access key does not map to the user. Highly unsafe to continue. Please investigate using the AWS Console."
@@ -1076,34 +1075,52 @@ function rotate_credentials() {
 	# echo "aws configure set aws_access_key_id \"$(aws configure get aws_access_key_id --profile ${PROFILE})\" --profile ${PROFILE}"
 	# echo "aws configure set aws_secret_access_key \"$(aws configure get aws_secret_access_key --profile ${PROFILE})\" --profile ${PROFILE}"
 
-	local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
+	local JSON="$(AWS_REGION=eu-west-1 aws iam get-user --profile ${PROFILE} 2>/dev/null)"
 	if ! echo $JSON  | python -mjson.tool &>/dev/null ; then
 		echo -n "# Verifying your new key. Waiting up to 30 secs for IAM to sync "
 		for i in `seq 1 30` ; do
-			local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
+			JSON="$(AWS_REGION=eu-west-1 aws iam get-user --profile ${PROFILE} 2>/dev/null)"
 			if echo $JSON  | python -mjson.tool &>/dev/null ; then
-				break
+			    break
 			fi
 			echo -n "." ; sleep 1s
 		done
 	fi
 
-  local JSON="$(aws iam get-user --profile ${PROFILE} 2>/dev/null)"
 	local MYUSERID="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
 	if test "${MYUSERID:0:4}" != "AIDA" ; then
-	    echo ""
-	  _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
-		_echoerr "Please submit a bug report including the below information"
-		_echoerr "Raw JSON output: \"${JSON}\""
-		return 1
+	    echo " failed."
+	    _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
+	    _echoerr "Please submit a bug report including the below information"
+	    _echoerr "Raw JSON output: \"${JSON}\""
+	    return 1
 	else
+	    echo " done."
+	fi
+
+	local RES="$(AWS_REGION=eu-west-1 aws iam delete-access-key --access-key-id ${MYKEY} --profile ${PROFILE} 2>&1)"
+	if [ $? != 0 -o "$RES" != '' ]; then
+	    echo -n "# Waiting some more for IAM to sync ."
+	    for i in `seq 1 30` ; do
+		RES="$(AWS_REGION=eu-west-1 aws iam delete-access-key --access-key-id ${MYKEY} --profile ${PROFILE} 2>&1)"
+		if [ $? -eq 0 -a "$RES" = '' ]; then
+		    break
+		fi
+		if ! echo $RES | grep -q InvalidClientTokenId; then
+		    echo " failed."
+		    _echoerr "ERROR: Could not delete old access key ${MYKEY}."
+		    _echoerr "Root cause: $RES"
+		    _echoerr "Plese delete the old access key manually"
+		    return 1
+		fi
+		echo -n "." ; sleep 1s
+	    done
 	    echo " done."
 	fi
 
 	echo "# Command to execute on other hosts to use the new api keys:"
 	echo "get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -d && history -d \$((HISTCMD-1))"
 
-	aws iam delete-access-key --access-key-id "${MYKEY}" --profile ${PROFILE}
 	MYKEY="${NEWKEY}" ; MYSECRETKEY="${NEWSECRETKEY}"
 
 	if (( TWOKEYS )) ; then
