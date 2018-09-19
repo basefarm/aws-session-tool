@@ -140,7 +140,7 @@ _age_check () {
 	echo -e "${RED}WARNING:${NC} Your API key is older than 60 days."
 	echo "The key will expire on: $MAX_AGE_LOCAL"
 	echo "To rotate, run:"
-	echo "  rotate_credentials -n"
+	echo "  rotate_credentials -n -p ${AWS_PROFILE}"
     fi
 }
 
