@@ -38,7 +38,6 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 
 # Defaults:
 DEFAULT_PROFILE='awsops'
-DEFAULT_BUCKET='bf-aws-tools-session-tool'
 
 #
 # Verify all prerequisites, and initialize arrays etc
@@ -193,18 +192,18 @@ get_session() {
 
 	if [ ! -z "${IMPORT}" ]; then
 	    # Import the key found in the file or the variable it self
-	    if [ ! -e ${IMPORT} ]; then
-		_KEY_ID="$(echo ${IMPORT} | awk -F, '{print $1}')"
-		_KEY_SECRET="$(echo ${IMPORT} | awk -F, '{print $2}')"
+	    if [ ! -e "${IMPORT}" ]; then
+		_KEY_ID="$(echo "${IMPORT}" | awk -F, '{print $1}')"
+		_KEY_SECRET="$(echo "${IMPORT}" | awk -F, '{print $2}')"
 		if [ -z "${_KEY_ID}" -o -z "${_KEY_SECRET}" ]; then
-		    _echoerr "ERROR: The file ${IMPORT} does not exist and it does not contain a valid api key-pair."
+		    _echoerr "ERROR: The file '${IMPORT}' does not exist and it does not contain a valid api key-pair."
 		    return 1
 		fi
 	    else
-		_KEY_ID="$(tail -1 ${IMPORT} | awk -F, '{print $1}')"
-		_KEY_SECRET="$(tail -1 ${IMPORT} | awk -F, '{print $2}')"
+		_KEY_ID="$(tail -1 "${IMPORT}" | awk -F, '{print $1}')"
+		_KEY_SECRET="$(tail -1 "${IMPORT}" | awk -F, '{print $2}')"
 		if [ -z "${_KEY_ID}" -o -z "${_KEY_SECRET}" ]; then
-		    _echoerr "ERROR: The file ${IMPORT} does not contain a valid api key-pair."
+		    _echoerr "ERROR: The file '${IMPORT}' does not contain a valid api key-pair."
 		    return 1
 		fi
 	    fi
@@ -212,12 +211,12 @@ get_session() {
 		# As this is import, possibly for the first time, let's assume the user wants the awsops profile
 		PROFILE=${DEFAULT_PROFILE}
 	    fi
-	    if [ -z "${BUCKET}" -a ${PROFILE} = ${DEFAULT_PROFILE} ]; then
-		# As this is import, possibly for the first time, let's assem the user wants to use the standard awsops bucket
-		BUCKET=${DEFAULT_BUCKET}
-	    fi
 	    if [ -z "${BUCKET}" ]; then
-		_echoerr "ERROR: You are using a non-standard profile ($PROFILE) and have not provided a bucket name."
+		BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
+		if [ -z "${BUCKET}" ]; then
+		    _echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
+		    return 1
+		fi
 	    fi
 
 	    unset AWS_PROFILE
@@ -739,7 +738,6 @@ _get_session_usage() {
 	echo "    -i file      Import csv file containing api key into your aws profile."
 	echo "                 This will create or replace your api key in the awsops profile."
 	echo "    -b bucket    Set bucket name during import for roles file."
-	echo "                 Default: $DEFAULT_BUCKET"
 	echo "    -h           Print this usage."
 	echo ""
 	echo "This command will on a successful authentication return session credentials"
