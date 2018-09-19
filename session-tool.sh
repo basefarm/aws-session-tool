@@ -244,7 +244,13 @@ get_session() {
 	    fi
 	    _KEY_ID=$(aws configure --profile "${PROFILE}" get aws_access_key_id)
 	    _KEY_SECRET=$(aws configure --profile "${PROFILE}" get aws_secret_access_key)
-	    echo "get_session -p ${PROFILE} -i ${_KEY_ID},${_KEY_SECRET} -d && history -d \$((HISTCMD-1))"
+
+	    BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
+	    if [ -z "${BUCKET}" ]; then
+		_echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
+		return 1
+	    fi
+	    echo "get_session -p ${PROFILE} -i ${_KEY_ID},${_KEY_SECRET} -b ${BUCKET} -d ; history -d \$((HISTCMD-1))"
 	fi
 	if ! ${STOREONLY} ; then
 		shift $((OPTIND-1))
@@ -1119,7 +1125,15 @@ function rotate_credentials() {
 	echo "Done [$i]"
 
 	echo "# Command to execute on other hosts to use the new api keys:"
-	echo " get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -d && history -d \$((HISTCMD-1))"
+
+	BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
+	if [ -z "${BUCKET}" ]; then
+	    _echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
+	    _echoerr "       You must manually add the bucket name to the command:"
+	    echo " get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -b '<bucket name>' -d ; history -d \$((HISTCMD-1))"
+	else
+	    echo " get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -b ${BUCKET} -d ; history -d \$((HISTCMD-1))"
+	fi
 
 	MYKEY="${NEWKEY}" ; MYSECRETKEY="${NEWSECRETKEY}"
 
