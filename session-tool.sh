@@ -127,8 +127,8 @@ _age_check () {
     local LOCAL=$(echo $TS | awk -F, '{print $2}')
     local NOW=$(date +%s)
 
-#    local ALLOWED_AGE=$( expr 3600 \* 24 \* 60 )
-    local ALLOWED_AGE=$( expr 18 \* 1 \* 1 )
+    local ALLOWED_AGE=$( expr 3600 \* 24 \* 60 )
+#    local ALLOWED_AGE=$( expr 18 \* 1 \* 1 )
     local AGE=$( expr $NOW - $ALLOWED_AGE )
 
     local MAX_AGE=$( expr $SEC + $ALLOWED_AGE )
