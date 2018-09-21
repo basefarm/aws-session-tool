@@ -1014,7 +1014,7 @@ function rotate_credentials() {
 			n   ) NOTCHANGEPW=1 ;;
 			p		) PROFILE=$OPTARG ;;
 			t   ) TWOKEYS=1 ;;
-			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
+			\?	) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
 			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
 		esac
 	done
