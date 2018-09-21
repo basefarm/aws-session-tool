@@ -6,7 +6,7 @@ This is a bash shell tool for maintaining AWS credentials in one or more shells.
 
 ```sh
 source ./session-tool.sh
-get_session -i <api keys csv file> -d
+get_session -i <api keys csv file> -b <bucket name> -d
 get_session -s <MFACODE>
 get_console_url <TAB>
 assume_role <TAB>
