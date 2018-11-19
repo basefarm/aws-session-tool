@@ -126,18 +126,21 @@ _age_check () {
     local LOCAL=$(echo $TS | awk -F, '{print $2}')
     local NOW=$(date +%s)
 
-    local ALLOWED_AGE=$( expr 3600 \* 24 \* 60 )
+    local WARN_AGE=$( expr 3600 \* 24 \* 60 )
+    local ALLOWED_AGE=$( expr 4600 \* 24 \* 90 )
+    local ALLOWED_AGE_SEC=$( expr $SEC + $ALLOWED_AGE )
+    local ALLOWED_AGE_LOCAL=$(_sec_to_local $ALLOWED_AGE_SEC)
 #    local ALLOWED_AGE=$( expr 18 \* 1 \* 1 )
-    local AGE=$( expr $NOW - $ALLOWED_AGE )
+    local AGE=$( expr $NOW - $WARN_AGE )
 
-    local MAX_AGE=$( expr $SEC + $ALLOWED_AGE )
+    local MAX_AGE=$( expr $SEC + $WARN_AGE )
     local MAX_AGE_LOCAL=$(_sec_to_local $MAX_AGE)
 
     RED=$(tput setaf 1)
     NC=$(tput sgr0)
     if [ $SEC -lt $AGE ]; then
 	echo -e "${RED}WARNING:${NC} Your API key is older than 60 days."
-	echo "The key will expire on: $MAX_AGE_LOCAL"
+	echo "The key will expire on: $ALLOWED_AGE_LOCAL"
 	echo "To rotate, run:"
 	echo "  rotate_credentials -n -p ${AWS_PROFILE}"
     fi
