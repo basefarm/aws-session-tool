@@ -378,11 +378,12 @@ get_session() {
 			fi
 
 			_pushp TEMP_AWS_PARAMETERS
-			_aws_reset
+			_aws_reset_vars
 			eval "$CREDENTIALS"
 			if ! _session_ok; then
-			_popp TEMP_AWS_PARAMETERS
-				return 1
+			    _aws_reset_vars
+			    _popp TEMP_AWS_PARAMETERS
+			    return 1
 			fi
 
 			local NOW=$(date +%s)
@@ -664,6 +665,7 @@ _dumpp () {
 _pushp () {
 	local i j k
 	for i in ${AWS_PARAMETERS} ; do
+	    if [ "${!i}" != "" ]; then
 		case $1 in
 			store* | STORE* )
 					j="STORED_AWS_PARAMETER_${i}" ;;
@@ -673,7 +675,8 @@ _pushp () {
 				echo "WARN: you can only push to arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
 				return 1 ;;
 		esac
-			export ${j}="${!i}"
+		export ${j}="${!i}"
+	    fi
 	done
 }
 
@@ -691,7 +694,9 @@ _popp () {
 					echo "WARN: you can only pop from arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
 					return 1 ;;
 			esac
-			export ${i}="${!j}"
+			if [ "${!j}" != "" ]; then
+			    export ${i}="${!j}"
+			fi
 		fi
 	done
 }
@@ -707,6 +712,17 @@ _aws_reset () {
 		unset $i $j $k
 	done
 }
+
+#
+# Clean up the user environment, only the AWS env variables
+#
+_aws_reset_vars () {
+	local i
+	for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
+		unset $i
+	done
+}
+
 
 #
 # Help descriptions
