@@ -46,8 +46,7 @@ _prereq () {
 	type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
 	case $OSTYPE in
 		darwin*	) _OPENSSL="/usr/bin/openssl";;
-		linux*	) _OPENSSL="openssl";;
-		cygwin*	) _OPENSSL="openssl";;
+		linux* | cygwin* ) _OPENSSL="openssl";;
 		*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
 	esac
 
@@ -84,25 +83,14 @@ _prereq () {
 	case $OSTYPE in
 	    darwin*)
 		eval `stat -s -t %s $check_file`
-		file_second=$st_ctime;;
-	    linux*)
-		file_second=$(stat --format=%Y $check_file);;
-	    cygwin*)
-		file_second=$(stat --format=%Y $check_file);;
+		file_second=$st_mtime;;
 	    *)
-	    _echoerr "ERROR: Unknown ostype: $OSTYPE"
-	    return 1;;
+		file_second=$(stat --format=%Y $check_file);;
 	esac
 	if [ $(( $current_second - $file_second )) -gt 604800 ]; then # One week
-	    # Check for update
-	    ping -c1 -n 8.8.8.8 &> /dev/null
-	    if [ $? -eq 0 ]; then
-		PUBVERSION="$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
-
-		test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
-	    
-		touch $check_file
-	    fi
+	    PUBVERSION="$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
+	    test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
+	    touch $check_file
 	fi
 
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
@@ -115,15 +103,9 @@ _string_to_sec () {
 	darwin*)
 	    _S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $1 +%s)
 	    _LOCAL=$(date -j -r $_S);;
-	linux*)
-	    _S=$(date -d $1 +%s)
-	    _LOCAL=$(date -d $1);;
-	cygwin*)
-	    _S=$(date -d $1 +%s)
-	    _LOCAL=$(date -d $1);;
 	*)
-	    _echoerr "ERROR: Unknown ostype: $OSTYPE"
-	    return 1;;
+	    _S=$(date -d $1 +%s)
+	    _LOCAL=$(date -d $1);;
     esac
     echo "$_S,$_LOCAL"
 }
@@ -132,13 +114,8 @@ _sec_to_local () {
     case $OSTYPE in
 	darwin*)
 	    _LOCAL=$(date -j -r $1);;
-	linux*)
-	    _LOCAL=$(date --date="@$1");;
-	cygwin*)
-	    _LOCAL=$(date --date="@$1");;
 	*)
-	    _echoerr "ERROR: Unknown ostype: $OSTYPE"
-	    return 1;;
+	    _LOCAL=$(date --date="@$1");;
     esac
     echo "$_LOCAL"
 }
@@ -192,9 +169,7 @@ get_session() {
 					local expiry_s=$(expr $(date -r $f '+%s') + 43200 )
 					case $OSTYPE in
 						darwin*	) local expiry_l=$(date -r $expiry_s '+%H:%M:%S %Y-%m-%d');;
-						linux*	) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
-						cygwin*	) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
-						*				) _echoerr "ERROR: Unknown ostype: $OSTYPE" ; return 1 ;;
+						*	) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
 					esac
 					local profile=$(basename $f .aes)
 					if [ $expiry_s -lt $now ]; then
@@ -476,16 +451,9 @@ get_session() {
 			darwin*)
 				export AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
 				export AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
-			linux*)
-				export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
-				export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
-			cygwin*)
-				export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
-				export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
 			*)
-			_echoerr "ERROR: Unknown ostype: $OSTYPE"
-			_popp TEMP_AWS_PARAMETERS
-			return 1;;
+				export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
+				export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
 		esac
 		export AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 		_pushp STORED_AWS_PARAMETERS
@@ -652,18 +620,10 @@ _sts_assume_role () {
 		darwin*)
 			AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
 			AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
-		linux*)
-			AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
-			AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
-		cygwin*)
-			AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
-			AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
 		*)
-			_echoerr "ERRROR: Unknown ostype: $OSTYPE"
-			_popp TEMP_AWS_PARAMETERS
-			return 1;;
+			AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
+			AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
 		esac
-
 	return 0
 }
 
