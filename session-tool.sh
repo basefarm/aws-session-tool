@@ -74,9 +74,36 @@ _prereq () {
 	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 
-	PUBVERSION="$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
+	# Check if upgrade needed
+	local current_second file_second check_file
+	check_file="$HOME/.aws/session-tool-update.txt"
+	if [ ! -e $check_file ]; then
+	    touch $check_file
+	fi
+	current_second=$(date +%s)
+	case $OSTYPE in
+	    darwin*)
+		eval `stat -s -t %s $check_file`
+		file_second=$st_ctime;;
+	    linux*)
+		file_second=$(stat --format=%Y $check_file);;
+	    cygwin*)
+		file_second=$(stat --format=%Y $check_file);;
+	    *)
+	    _echoerr "ERROR: Unknown ostype: $OSTYPE"
+	    return 1;;
+	esac
+	if [ $(( $current_second - $file_second )) -gt 604800 ]; then # One week
+	    # Check for update
+	    ping -c1 -n 8.8.8.8 &> /dev/null
+	    if [ $? -eq 0 ]; then
+		PUBVERSION="$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
 
-	test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
+		test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
+	    
+		touch $check_file
+	    fi
+	fi
 
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
 }
