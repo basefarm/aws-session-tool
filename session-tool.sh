@@ -397,9 +397,6 @@ get_session() {
 
 			local CREDS=$(echo "$CREDENTIALS" | sed 's/^/export /')
 			eval "$CREDS"
-			for i in ${AWS_PARAMETERS} ; do
-				export i
-			done
 			_pushp STORED_AWS_PARAMETERS
 			return 0
 		fi
