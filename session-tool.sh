@@ -75,7 +75,11 @@ _prereq () {
 
 	# Check if upgrade needed
 	local current_second file_second check_file
-	check_file="$HOME/.aws/session-tool-update.txt"
+	check_file="${HOME}/.aws/session-tool-update.txt"
+	if [ ! -d "${HOME}/.aws" ]; then
+	    mkdir "${HOME}/.aws"
+	    chmod 744 "${HOME}/.aws"
+	fi
 	if [ ! -e $check_file ]; then
 	    touch $check_file
 	fi
