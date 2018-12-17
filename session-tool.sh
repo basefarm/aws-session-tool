@@ -36,6 +36,8 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 # test, grep, egrep, awk and sed.
 #
 
+export AWS_SESSION_TOOL="$BASH_SOURCE"
+
 # Defaults:
 DEFAULT_PROFILE='awsops'
 
