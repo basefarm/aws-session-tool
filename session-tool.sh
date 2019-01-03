@@ -1,5 +1,5 @@
 #!/bin/bash
-SESSION_TOOL_VERSION=1.5.4
+SESSION_TOOL_VERSION=1.5.5
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
 # Bash utility to
@@ -99,7 +99,7 @@ _prereq () {
 	    touch $check_file
 	fi
 
-	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_NAME AWS_ROLE_EXPIRATION AWS_ROLE_ALIAS"
+	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
 }
 
 
@@ -469,6 +469,9 @@ get_session() {
 			return 1
 		fi
 
+		# Unset ROLE specific variables, as this session is now "plain"
+		unset AWS_ROLE_ALIAS
+
 		case $OSTYPE in
 			darwin*)
 				export AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
@@ -603,7 +606,7 @@ _sts_assume_role () {
 	fi
 
 
-	AWS_ROLE_ALIAS=${1:-$AWS_ROLE_ALIAS}
+	export AWS_ROLE_ALIAS=${1:-$AWS_ROLE_ALIAS}
 	read tmp ROLE_ARN SESSION_NAME EXTERNAL_ID <<< $(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -m 1 "^${AWS_ROLE_ALIAS} ")
 
 	if [ -z "$ROLE_ARN" ]; then
