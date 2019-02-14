@@ -129,7 +129,7 @@ _sec_to_local () {
 
 # Function to check age of API keys
 _age_check () {
-    local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE | python -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
+    local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE --output json | python -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
     local TS=$(_string_to_sec $CREATED)
 
     local SEC=$(echo $TS | awk -F, '{print $1}')
