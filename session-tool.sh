@@ -129,6 +129,11 @@ _sec_to_local () {
 
 # Function to check age of API keys
 _age_check () {
+    if [ "$AWS_PROFILE" == "" ]; then
+	_echoerr "ERROR(_age_check): AWS_PROFILE is not set"
+	return 1
+    fi
+
     local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE --output json | python -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
     local TS=$(_string_to_sec $CREATED)
 
@@ -148,11 +153,12 @@ _age_check () {
 
     RED=$(tput setaf 1)
     NC=$(tput sgr0)
-    if [ $SEC -lt $AGE ]; then
+    if [ "$SEC" -lt "$AGE" ]; then
 	echo -e "${RED}WARNING:${NC} Your API key is older than 60 days."
 	echo "The key will expire on: $ALLOWED_AGE_LOCAL"
 	echo "To rotate, run:"
 	echo "  rotate_credentials -n -p ${AWS_PROFILE}"
+	return 1
     fi
 }
 
@@ -925,18 +931,22 @@ _session_ok () {
 # Assumes AWS_PROFILE is set
 _init_aws () {
 
-	local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
-	local SERIAL="${USER/:user/:mfa}"
-
-	if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
-		export AWS_USER=$USER
-		export AWS_SERIAL=$SERIAL
-	else
-		_echoerr "ERROR: Unable to obtain AWS user ARN using the profile: $AWS_PROFILE"
-		_echoerr "DEBUG: USER=$USER"
-		_echoerr "DEBUG: SERIAL=$SERIAL"
-		return 1
-	fi
+    if [ "$AWS_PROFILE" == "" ]; then 
+	_echoerr "ERROR(_init_aws): Missing AWS_PROFILE"
+	return 1
+    fi
+    local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
+    local SERIAL="${USER/:user/:mfa}"
+    
+    if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
+	export AWS_USER=$USER
+	export AWS_SERIAL=$SERIAL
+    else
+	_echoerr "ERROR: Unable to obtain AWS user ARN using the profile: $AWS_PROFILE"
+	_echoerr "DEBUG: USER=$USER"
+	_echoerr "DEBUG: SERIAL=$SERIAL"
+	return 1
+    fi
 }
 
 _bashcompletion_sessionhandling () {
