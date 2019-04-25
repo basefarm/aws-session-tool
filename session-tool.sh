@@ -219,7 +219,7 @@ get_session() {
 		        b		) BUCKET=$OPTARG ;;
 		        e		) EXPORT=true ;;
 			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
-			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
 		esac
 	done
 
@@ -517,7 +517,7 @@ assume_role () {
 			h		) _assume_role_usage ; return 0 ;;
 			l		) _list_roles ; return 0 ;;
 			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
-			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
 		esac
 	done
 	shift $((OPTIND-1))
@@ -536,7 +536,7 @@ get_console_url () {
 			h		) _get_console_url_usage ; return 0 ;;
 			l		) _list_roles ; return 0 ;;
 			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
-			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
 		esac
 	done
 	shift $((OPTIND-1))
@@ -1056,7 +1056,7 @@ function rotate_credentials() {
 			p		) PROFILE=$OPTARG ;;
 			t   ) TWOKEYS=1 ;;
 			\?	) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
-			:		) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
 		esac
 	done
 	shift $((OPTIND-1))
