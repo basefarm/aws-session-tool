@@ -1,8 +1,16 @@
 # Description
 
-This is a bash shell tool for maintaining AWS credentials in one or more shells.
+This is a bash shell tool for maintaining AWS credentials in one or more shells and switching between AWS accounts.
 
-# TL;DR
+# Getting started using this tool
+
+Requirements:
+* Clone the repo or download only the `session-tool.sh` file.
+* python and pip installed
+* Install the [AWS Command Line tools](https://aws.amazon.com/cli/). AWS official [installation documentation](https://docs.aws.amazon.com/cli/latest/userguide/installing.html).
+* Know the bucket name where your organizations roles are defined
+
+Log in to your AWS account and download a set of API keys. Save the csv file to your computer.
 
 ```sh
 source ./session-tool.sh
