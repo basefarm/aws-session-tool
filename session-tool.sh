@@ -324,11 +324,11 @@ get_session() {
 						ROLESFILE="session-tool_roles.cfg"
 					fi
 				fi
-				if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" | grep -q ${ROLESFILE} ; then
+				if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
 					_echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
 					return 1
 				fi
-				if ! out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>&1)" ; then
+				if ! out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1)" ; then
 					_echoerr "ERROR: ${out}"
 					_echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
 					return 1
@@ -357,7 +357,7 @@ get_session() {
 					_echoerr "ERROR: missing file to upload ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
 					return 1
 				fi
-				aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}"
+				aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE}
 				echo "# Roles uploaded"
 				return 0
 			fi
