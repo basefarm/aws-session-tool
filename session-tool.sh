@@ -1198,7 +1198,8 @@ function rotate_credentials() {
 		if test "${NEWKEY:0:4}" != "AKIA" ; then
 	  	_echoerr "ERROR: Unable to create a second set of valid credentials for profile ${PROFILE}, unsafe to continue."
 			_echoerr "Please submit a bug report including the below information"
-			_echoerr "Raw JSON output: \"${JSON}\""			return 1
+			_echoerr "Raw JSON output: \"${JSON}\""
+			return 1
 		fi
 		echo
 		echo "# Second key set generated. Manual configuration like this:"
