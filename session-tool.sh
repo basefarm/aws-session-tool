@@ -44,6 +44,11 @@ DEFAULT_PROFILE='awsops'
 #
 # Verify all prerequisites, and initialize arrays etc
 #
+
+_vergte() {
+    printf '%s\n%s' "$2" "$1" | sort -C -V
+}
+
 _prereq () {
 	type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
 	case $OSTYPE in
@@ -52,28 +57,60 @@ _prereq () {
 		*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
 	esac
 
+	_PYTHON="python"
+	type $_PYTHON >/dev/null 2>&1
+	if [ $? -eq 1 ]; then
+	    type python3 >/dev/null 2>&1
+	    if [ $? -eq 0 ]; then
+		_PYTHON="python3"
+	    fi
+	fi
+
 	type $_OPENSSL >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: openssl is not found. session_tools will not work." ; }
 	type date >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: date is not found. session_tools will not work." ; }
 	type aws >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: aws is not found. session_tools will not work." ; }
-	type python >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: python is not found. session_tools will not work." ; }
-	python -c "import json.tool" >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: python json.tool is not found. session_tools will not work." ; }
+	type $_PYTHON >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: $_PYTHON is not found. session_tools will not work." ; }
+	$_PYTHON -c "import json.tool" >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: $_PYTHON json.tool is not found. session_tools will not work." ; }
 	type grep >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: grep is not found. session_tools will not work." ; }
 	type egrep >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: egrep is not found. session_tools will not work." ; }
 	type awk  >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: awk is not found. session_tools will not work." ; }
 	type sed >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: sed is not found. session_tools will not work." ; }
+	type sort >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: sort is not found. session_tools will not work." ; }
 	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
+
 	type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
 	type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
 	type aws >/dev/null 2>&1 || echo >&2 "ERROR: aws is not found. session_tools will not work."
-	type python >/dev/null 2>&1 || echo >&2 "ERROR: python is not found. session_tools will not work."
-	python -c "import json.tool" >/dev/null 2>&1 || echo >&2 "ERROR: python json.tool is not found. session_tools will not work."
+	type $_PYTHON >/dev/null 2>&1 || echo >&2 "ERROR: $_PYTHON is not found. session_tools will not work."
+	$_PYTHON -c "import json.tool" >/dev/null 2>&1 || echo >&2 "ERROR: $_PYTHON json.tool is not found. session_tools will not work."
 	type grep >/dev/null 2>&1 || echo >&2 "ERROR: grep is not found. session_tools will not work."
 	type egrep >/dev/null 2>&1 || echo >&2 "ERROR: egrep is not found. session_tools will not work."
 	type awk  >/dev/null 2>&1 || echo >&2 "ERROR: awk is not found. session_tools will not work."
 	type sed >/dev/null 2>&1 || echo >&2 "ERROR: sed is not found. session_tools will not work."
+	type sort >/dev/null 2>&1 || echo >&2 "ERROR: sort is not found. session_tools will not work."
 	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
+
+	# Check for pbkdf2 key derivation support
+	_OPENSSL__ARGS=""
+	ossl=$($_OPENSSL version)
+	ossl_dist=$(echo $ossl | awk '{print $1}')
+	ossl_ver=$(echo $ossl | awk '{print $2}')
+
+	if [ "$ossl_dist" == "OpenSSL" ]; then
+	    # Check for OpenSSL version 1.1.1 or newer
+	    if _vergte "$ossl_ver" "1.1.1"; then
+		_OPENSSL_ARGS="-pbkdf2 -iter 50000"
+	    fi
+	elif [ "$ossl_dist" == "LibreSSL" ]; then
+	    # Check for LibreSSL version 2.9.1 or newer
+	    if _vergte "$ossl_ver" "2.9.1"; then
+		_OPENSSL_ARGS="-pbkdf2 -iter 50000"
+	    fi
+	else
+	    echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
+	fi
 
 	# Check if upgrade needed
 	local current_second file_second check_file
@@ -134,7 +171,7 @@ _age_check () {
 	return 1
     fi
 
-    local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE --output json | python -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
+    local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE --output json | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
     local TS=$(_string_to_sec $CREATED)
 
     local SEC=$(echo $TS | awk -F, '{print $1}')
@@ -403,7 +440,7 @@ get_session() {
 				return 1
 			fi
 
-			local CREDENTIALS=$($_OPENSSL aes-256-cbc -d -in ~/.aws/${AWS_PROFILE}.aes)
+			local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
 			if echo "$CREDENTIALS" | egrep -qv "^AWS_"; then
 				_echoerr "ERROR: Unable to restore your credentials."
 				return 1
@@ -464,7 +501,7 @@ get_session() {
 			_echoerr "ERROR: Unable to obtain session"
 			return 1
 		fi
-		local JSON_NORM=$(echo $JSON | python -mjson.tool)
+		local JSON_NORM=$(echo $JSON | $_PYTHON -mjson.tool)
 		AWS_SECRET_ACCESS_KEY=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')
 		AWS_SESSION_TOKEN=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "SessionToken") print $4}')
 		AWS_ACCESS_KEY_ID=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
@@ -494,7 +531,7 @@ get_session() {
 	if $STORE ; then
 		touch ~/.aws/${AWS_PROFILE}.aes
 		chmod 600 ~/.aws/${AWS_PROFILE}.aes
-		$_OPENSSL enc -aes-256-cbc -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+		$_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 			AWS_USER='$AWS_USER'
 			AWS_SERIAL='$AWS_SERIAL'
 			AWS_PROFILE='$AWS_PROFILE'
@@ -546,7 +583,7 @@ get_console_url () {
 		local SESSION="{\"sessionId\":\"${AWS_ACCESS_KEY_ID}\",\"sessionKey\":\"${AWS_SECRET_ACCESS_KEY}\",\"sessionToken\":\"${AWS_SESSION_TOKEN}\"}"
 		local ENCODED_SESSION=$(_rawurlencode ${SESSION})
 		local URL="https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${ENCODED_SESSION}"
-		local SIGNIN_TOKEN=$(curl --silent ${URL} | python -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
+		local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
 		local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
 		echo "https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
 		_popp TEMP_AWS_PARAMETERS
@@ -636,7 +673,7 @@ _sts_assume_role () {
 		_echoerr "ERROR: Unable to obtain session"
 		return 1
 	fi
-	local JSON_NORM=$(echo $JSON | python -mjson.tool)
+	local JSON_NORM=$(echo $JSON | $_PYTHON -mjson.tool)
 	AWS_SECRET_ACCESS_KEY=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')
 	AWS_SESSION_TOKEN=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "SessionToken") print $4}')
 	AWS_ACCESS_KEY_ID=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
@@ -1072,7 +1109,7 @@ function rotate_credentials() {
 	fi
 
 	local JSON="$(aws iam get-user --profile ${PROFILE})"
-	local MYUSERID="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
+	local MYUSERID="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
 	if test "${MYUSERID:0:4}" != "AIDA" ; then
 	  _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
 		return 1
@@ -1097,8 +1134,8 @@ function rotate_credentials() {
 	fi
 
 	local JSON="$(AWS_REGION=eu-west-1 aws iam create-access-key --profile ${PROFILE})"
-	local NEWKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
-	local NEWSECRETKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
+	local NEWKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
+	local NEWSECRETKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
 	if test "${NEWKEY:0:4}" != "AKIA" ; then
 	  _echoerr "ERROR: Unable to create valid credentials for profile ${PROFILE}, unsafe to continue."
 		return 1
@@ -1127,7 +1164,7 @@ function rotate_credentials() {
 	for i in `seq 1 30` ; do
 	    tput cub $(echo -n "$prev" | wc -m)
 	    JSON="$(AWS_REGION=eu-west-1 aws iam get-user --profile ${PROFILE} 2>/dev/null)"
-	    if echo $JSON  | python -mjson.tool &>/dev/null ; then
+	    if echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
 		break
 	    fi
 	    echo -n $i
@@ -1135,7 +1172,7 @@ function rotate_credentials() {
 	    sleep 1s
 	done
 
-	local MYUSERID="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
+	local MYUSERID="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
 	if test "${MYUSERID:0:4}" != "AIDA" ; then
 	    echo "Failed [$i]"
 	    _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
@@ -1182,19 +1219,19 @@ function rotate_credentials() {
 
 	if (( TWOKEYS )) ; then
 		local JSON="$(aws iam create-access-key --profile ${PROFILE} 2>/dev/null)"
-		if ! echo $JSON  | python -mjson.tool &>/dev/null ; then
+		if ! echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
 			echo -n "# Again, waiting up to 30 secs for IAM to sync "
 			for i in `seq 1 30` ; do
 				local JSON="$(aws iam create-access-key --profile ${PROFILE} 2>/dev/null)"
-				if echo $JSON  | python -mjson.tool &>/dev/null ; then
+				if echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
 					break
 				fi
 				echo -n "." ; sleep 1s
 			done
 		fi
 		echo ""
-		NEWKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
-		NEWSECRETKEY="$(echo $JSON  | python -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
+		NEWKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
+		NEWSECRETKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
 		if test "${NEWKEY:0:4}" != "AKIA" ; then
 	  	_echoerr "ERROR: Unable to create a second set of valid credentials for profile ${PROFILE}, unsafe to continue."
 			_echoerr "Please submit a bug report including the below information"
