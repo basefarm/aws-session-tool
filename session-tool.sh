@@ -1013,9 +1013,9 @@ function _gen_awspw() {
 	local spcchar='@#$%^*()_+-=[]{}'
 
 	until (( pwok )) ; do
-		local pw="$(openssl rand -base64 $((${mylen}+2)) )"
-		local pwsub="$(openssl rand -hex 1)"
-		local pwplace="$(openssl rand -hex 1)"
+		local pw="$($_OPENSSL rand -base64 $((${mylen}+2)) )"
+		local pwsub="$($_OPENSSL rand -hex 1)"
+		local pwplace="$($_OPENSSL rand -hex 1)"
 		pw="${pw:0:$((0x${pwplace:0:1}))}${spcchar:$((0x${pwsub:0:1})):1}${pw:$((0x${pwplace:0:1}+1))}"
 		pw="${pw:0:$((0x${pwplace:1:1}))}${spcchar:$((0x${pwsub:1:1})):1}${pw:$((0x${pwplace:1:1}+1))}"
 		pw="${pw:0:${mylen}}"
