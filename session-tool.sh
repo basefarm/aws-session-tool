@@ -49,6 +49,19 @@ _vergte() {
     printf '%s\n%s' "$2" "$1" | sort -C -V
 }
 
+_python_check() {
+  if [ -z "$_PYTHON" ]; then
+    _PYTHON="python"
+  	type $_PYTHON >/dev/null 2>&1
+  	if [ $? -eq 1 ]; then
+  	    type python3 >/dev/null 2>&1
+  	    if [ $? -eq 0 ]; then
+      		_PYTHON="python3"
+  	    fi
+  	fi
+  fi
+}
+
 _prereq () {
 	type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
 	case $OSTYPE in
@@ -56,15 +69,6 @@ _prereq () {
 		linux* | cygwin* ) _OPENSSL="openssl";;
 		*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
 	esac
-
-	_PYTHON="python"
-	type $_PYTHON >/dev/null 2>&1
-	if [ $? -eq 1 ]; then
-	    type python3 >/dev/null 2>&1
-	    if [ $? -eq 0 ]; then
-		_PYTHON="python3"
-	    fi
-	fi
 
 	type $_OPENSSL >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: openssl is not found. session_tools will not work." ; }
 	type date >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: date is not found. session_tools will not work." ; }
@@ -970,13 +974,13 @@ _session_ok () {
 # Assumes AWS_PROFILE is set
 _init_aws () {
 
-    if [ "$AWS_PROFILE" == "" ]; then 
+    if [ "$AWS_PROFILE" == "" ]; then
 	_echoerr "ERROR(_init_aws): Missing AWS_PROFILE"
 	return 1
     fi
     local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
     local SERIAL="${USER/:user/:mfa}"
-    
+
     if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
 	export AWS_USER=$USER
 	export AWS_SERIAL=$SERIAL
@@ -1277,6 +1281,8 @@ function rotate_credentials() {
 # Main loop.
 case $- in
 *i*)    # interactive shell
+  # Check Python versions
+  _python_check
   # Execute _prereq to actually verify prerequisites:
   _prereq
   # Configure bash completetion
@@ -1286,5 +1292,6 @@ case $- in
   complete -F _bashcompletion_rotate rotate_credentials
   ;;
 *)      # non-interactive shell
+  _python_check
   ;;
 esac
