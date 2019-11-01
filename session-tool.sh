@@ -49,7 +49,14 @@ _vergte() {
     printf '%s\n%s' "$2" "$1" | sort -C -V
 }
 
-_python_check() {
+_prereq () {
+	type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
+	case $OSTYPE in
+		darwin*	) _OPENSSL="/usr/bin/openssl";;
+		linux* | cygwin* ) _OPENSSL="openssl";;
+		*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
+	esac
+
   if [ -z "$_PYTHON" ]; then
     _PYTHON="python"
   	type $_PYTHON >/dev/null 2>&1
@@ -60,15 +67,6 @@ _python_check() {
   	    fi
   	fi
   fi
-}
-
-_prereq () {
-	type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
-	case $OSTYPE in
-		darwin*	) _OPENSSL="/usr/bin/openssl";;
-		linux* | cygwin* ) _OPENSSL="openssl";;
-		*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
-	esac
 
 	type $_OPENSSL >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: openssl is not found. session_tools will not work." ; }
 	type date >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: date is not found. session_tools will not work." ; }
@@ -116,7 +114,13 @@ _prereq () {
 	    echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
 	fi
 
-	# Check if upgrade needed
+
+
+	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
+}
+
+_upgrade_check() {
+  # Check if upgrade needed
 	local current_second file_second check_file
 	check_file="${HOME}/.aws/session-tool-update.txt"
 	if [ ! -d "${HOME}/.aws" ]; then
@@ -139,11 +143,7 @@ _prereq () {
 	    test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
 	    touch $check_file
 	fi
-
-	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
 }
-
-
 
 _string_to_sec () {
     case $OSTYPE in
@@ -1281,10 +1281,10 @@ function rotate_credentials() {
 # Main loop.
 case $- in
 *i*)    # interactive shell
-  # Check Python versions
-  _python_check
   # Execute _prereq to actually verify prerequisites:
   _prereq
+  # Check for new version
+  _upgrade_check
   # Configure bash completetion
   complete -F _bashcompletion_sessionhandling get_session
   complete -F _bashcompletion_rolehandling get_console_url
@@ -1292,6 +1292,7 @@ case $- in
   complete -F _bashcompletion_rotate rotate_credentials
   ;;
 *)      # non-interactive shell
-  _python_check
+  # Execute _prereq to actually verify prerequisites:
+  _prereq
   ;;
 esac
