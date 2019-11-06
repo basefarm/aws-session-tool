@@ -57,14 +57,16 @@ _prereq () {
 		*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
 	esac
 
-	_PYTHON="python"
-	type $_PYTHON >/dev/null 2>&1
-	if [ $? -eq 1 ]; then
-	    type python3 >/dev/null 2>&1
-	    if [ $? -eq 0 ]; then
-		_PYTHON="python3"
-	    fi
-	fi
+  if [ -z "$_PYTHON" ]; then
+    _PYTHON="python"
+  	type $_PYTHON >/dev/null 2>&1
+  	if [ $? -eq 1 ]; then
+  	    type python3 >/dev/null 2>&1
+  	    if [ $? -eq 0 ]; then
+      		_PYTHON="python3"
+  	    fi
+  	fi
+  fi
 
 	type $_OPENSSL >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: openssl is not found. session_tools will not work." ; }
 	type date >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: date is not found. session_tools will not work." ; }
@@ -112,7 +114,13 @@ _prereq () {
 	    echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
 	fi
 
-	# Check if upgrade needed
+
+
+	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
+}
+
+_upgrade_check() {
+  # Check if upgrade needed
 	local current_second file_second check_file
 	check_file="${HOME}/.aws/session-tool-update.txt"
 	if [ ! -d "${HOME}/.aws" ]; then
@@ -135,11 +143,7 @@ _prereq () {
 	    test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
 	    touch $check_file
 	fi
-
-	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
 }
-
-
 
 _string_to_sec () {
     case $OSTYPE in
@@ -970,13 +974,13 @@ _session_ok () {
 # Assumes AWS_PROFILE is set
 _init_aws () {
 
-    if [ "$AWS_PROFILE" == "" ]; then 
+    if [ "$AWS_PROFILE" == "" ]; then
 	_echoerr "ERROR(_init_aws): Missing AWS_PROFILE"
 	return 1
     fi
     local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
     local SERIAL="${USER/:user/:mfa}"
-    
+
     if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
 	export AWS_USER=$USER
 	export AWS_SERIAL=$SERIAL
@@ -1279,6 +1283,8 @@ case $- in
 *i*)    # interactive shell
   # Execute _prereq to actually verify prerequisites:
   _prereq
+  # Check for new version
+  _upgrade_check
   # Configure bash completetion
   complete -F _bashcompletion_sessionhandling get_session
   complete -F _bashcompletion_rolehandling get_console_url
@@ -1286,5 +1292,7 @@ case $- in
   complete -F _bashcompletion_rotate rotate_credentials
   ;;
 *)      # non-interactive shell
+  # Execute _prereq to actually verify prerequisites:
+  _prereq
   ;;
 esac
