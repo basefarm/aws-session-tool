@@ -275,6 +275,8 @@ get_session() {
 		    _echoerr "ERROR: The file '${IMPORT}' does not exist and it does not contain a valid api key-pair."
 		    return 1
 		fi
+		# Remove "this" command from history, as it contains a clear text secret access key
+		history -d $((HISTCMD-1))
 	    else
 		_KEY_ID="$(tail -1 "${IMPORT}" | awk -F, '{print $1}')"
 		_KEY_SECRET="$(tail -1 "${IMPORT}" | awk -F, '{print $2}')"
@@ -326,7 +328,7 @@ get_session() {
 		_echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
 		return 1
 	    fi
-	    echo "get_session -p ${PROFILE} -i ${_KEY_ID},${_KEY_SECRET} -b ${BUCKET} -d ; history -d \$((HISTCMD-1))"
+	    echo "get_session -p ${PROFILE} -i ${_KEY_ID},${_KEY_SECRET} -b ${BUCKET} -d"
 	fi
 	if ! ${STOREONLY} ; then
 		shift $((OPTIND-1))
@@ -1214,9 +1216,9 @@ function rotate_credentials() {
 	if [ -z "${BUCKET}" ]; then
 	    _echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
 	    _echoerr "       You must manually add the bucket name to the command:"
-	    echo " get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -b '<bucket name>' -d ; history -d \$((HISTCMD-1))"
+	    echo " get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -b '<bucket name>' -d"
 	else
-	    echo " get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -b ${BUCKET} -d ; history -d \$((HISTCMD-1))"
+	    echo " get_session -p ${PROFILE} -i ${NEWKEY},${NEWSECRETKEY} -b ${BUCKET} -d"
 	fi
 
 	MYKEY="${NEWKEY}" ; MYSECRETKEY="${NEWSECRETKEY}"
