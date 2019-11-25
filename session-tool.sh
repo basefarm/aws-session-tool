@@ -400,7 +400,8 @@ get_session() {
 					_echoerr "ERROR: missing file to upload ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
 					return 1
 				fi
-				aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE}
+				# User must assume the role that grants write before running the upload
+				aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}"
 				echo "# Roles uploaded"
 				return 0
 			fi
