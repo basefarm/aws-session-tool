@@ -168,7 +168,7 @@ _sec_to_local () {
 }
 
 
-# Function to check age of API keys
+# Function to check age of Access keys
 _age_check () {
     if [ "$AWS_PROFILE" == "" ]; then
 	_echoerr "ERROR(_age_check): AWS_PROFILE is not set"
@@ -195,7 +195,7 @@ _age_check () {
     RED=$(tput setaf 1)
     NC=$(tput sgr0)
     if [ "$SEC" -lt "$AGE" ]; then
-	echo -e "${RED}WARNING:${NC} Your API key is older than 60 days."
+	echo -e "${RED}WARNING:${NC} Your Access key is older than 60 days."
 	echo "The key will expire on: $ALLOWED_AGE_LOCAL"
 	echo "To rotate, run:"
 	echo "  rotate_credentials -n -p ${AWS_PROFILE}"
