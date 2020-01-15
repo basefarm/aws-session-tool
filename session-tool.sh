@@ -35,8 +35,152 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 #
 # test, grep, egrep, awk and sed.
 #
+if test -n "$ZSH_VERSION"; then
+  echo "WARN: session_tool for ZSH is in beta :-D"
+  PROFILE_SHELL=zsh
+  export AWS_SESSION_TOOL=$0:A
+  autoload -Uz bashcompinit
+  bashcompinit -i
+  # Pushx the current parameters into an array
+  _pushp () {
+  	local i j k
+  	for i in ${(z)AWS_PARAMETERS} ; do
+	    if [ "${(P)i}" != "" ]; then
+    		case $1 in
+    			store* | STORE* ) j="STORED_AWS_PARAMETER_${i}" ;;
+    			temp* | TEMP* )   j="TEMPORARY_AWS_PARAMETER_${i}" ;;
+    			* )               echo "WARN: you can only push to arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
+    				return 1 ;;
+    		esac
+    		export ${j}="${(P)i}"
+	    fi
+  	done
+  }
 
-export AWS_SESSION_TOOL="$BASH_SOURCE"
+  # Pop an array into the current parameters, skipping the listed parameters
+  _popp () {
+  	local i j k
+  	for i in ${(z)AWS_PARAMETERS} ; do
+  		if ! [[ "$* " = *"${i} "* ]] ; then
+  			case $1 in
+  				store* | STORE* ) j="STORED_AWS_PARAMETER_${i}" ;;
+  				temp* | TEMP* )   j="TEMPORARY_AWS_PARAMETER_${i}" ;;
+  				* )               echo "WARN: you can only pop from arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
+  					return 1 ;;
+  			esac
+  			[ "${(P)j}" != "" ] && export ${i}="${(P)j}"
+  		fi
+  	done
+  }
+  #
+  # Clean up the user environment, only the AWS env variables
+  #
+  _aws_reset_vars () {
+  	local i
+  	for i in ${(z)AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
+  		unset $i
+  	done
+  }
+  #
+  # Clean up the user environment and remove every trace of an aws session
+  #
+  _aws_reset () {
+  	local i j k
+  	for i in ${(z)AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
+  		j="STORED_AWS_PARAMETER_${i}"
+  		k="TEMPORARY_AWS_PARAMETER_${i}"
+  		unset $i $j $k
+  	done
+  }
+  # Display a set of parameters
+  _dumpp () {
+  	echo "# Parameter set:"
+  	for i in ${(z)AWS_PARAMETERS} ; do
+  		case $1 in
+  			store* | STORE* )
+  				printf "# %30s : %s\n" "${i}" "${STORED_AWS_PARAMETERS[$i]}" ;;
+  			temp* | TEMP* )
+  				printf "# %30s : %s\n" "${i}" "${TEMP_AWS_PARAMETERS[$i]}" ;;
+  			"" | current )
+  				printf "# %30s : %s\n" "${i}" "${(P)i}" ;;
+  		esac
+  	done
+  }
+
+elif test -n "$BASH_VERSION"; then
+  PROFILE_SHELL=bash
+  export AWS_SESSION_TOOL="$BASH_SOURCE"
+  # Pushx the current parameters into an array
+  _pushp () {
+  	local i j k
+  	for i in ${AWS_PARAMETERS} ; do
+	    if [ "${!i}" != "" ]; then
+    		case $1 in
+    			store* | STORE* ) j="STORED_AWS_PARAMETER_${i}" ;;
+    			temp* | TEMP* )   j="TEMPORARY_AWS_PARAMETER_${i}" ;;
+    			* )               echo "WARN: you can only push to arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
+    				return 1 ;;
+    		esac
+    		export ${j}="${!i}"
+	    fi
+  	done
+  }
+
+  # Pop an array into the current parameters, skipping the listed parameters
+  _popp () {
+  	local i j k
+  	for i in ${AWS_PARAMETERS} ; do
+  		if ! [[ "$* " = *"${i} "* ]] ; then
+  			case $1 in
+  				store* | STORE* ) j="STORED_AWS_PARAMETER_${i}" ;;
+  				temp* | TEMP* )   j="TEMPORARY_AWS_PARAMETER_${i}" ;;
+  				* )               echo "WARN: you can only pop from arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
+  					return 1 ;;
+  			esac
+  			[ "${!j}" != "" ] && export ${i}="${!j}"
+  		fi
+  	done
+  }
+  #
+  # Clean up the user environment, only the AWS env variables
+  #
+  _aws_reset_vars () {
+  	local i
+  	for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
+  		unset $i
+  	done
+  }
+  #
+  # Clean up the user environment and remove every trace of an aws session
+  #
+  _aws_reset () {
+  	local i j k
+  	for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
+  		j="STORED_AWS_PARAMETER_${i}"
+  		k="TEMPORARY_AWS_PARAMETER_${i}"
+  		unset $i $j $k
+  	done
+  }
+  # Display a set of parameters
+  _dumpp () {
+  	echo "# Parameter set:"
+  	for i in ${AWS_PARAMETERS} ; do
+  		case $1 in
+  			store* | STORE* )
+  				printf "# %30s : %s\n" "${i}" "${STORED_AWS_PARAMETERS[$i]}" ;;
+  			temp* | TEMP* )
+  				printf "# %30s : %s\n" "${i}" "${TEMP_AWS_PARAMETERS[$i]}" ;;
+  			"" | current )
+  				printf "# %30s : %s\n" "${i}" "${!i}" ;;
+  		esac
+  	done
+  }
+
+else
+	echo >&2 "ERROR: Shell is not bash/zsh, probably csh or tcsh. session_tools will not work."
+  return -1
+fi
+
 
 # Defaults:
 DEFAULT_PROFILE='awsops'
@@ -78,8 +222,6 @@ _prereq () {
 	type awk  >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: awk is not found. session_tools will not work." ; }
 	type sed >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: sed is not found. session_tools will not work." ; }
 	type sort >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: sort is not found. session_tools will not work." ; }
-	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
-	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 
 	type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
 	type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
@@ -91,8 +233,6 @@ _prereq () {
 	type awk  >/dev/null 2>&1 || echo >&2 "ERROR: awk is not found. session_tools will not work."
 	type sed >/dev/null 2>&1 || echo >&2 "ERROR: sed is not found. session_tools will not work."
 	type sort >/dev/null 2>&1 || echo >&2 "ERROR: sort is not found. session_tools will not work."
-	test "$?BASH" = "0" && echo "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
-	test "$?BASH" = 0 || [[ "${BASH}" =~ "bash" ]] || echo >&2 "ERROR: Shell is not bash, probably csh or tcsh. session_tools will not work."
 
 	# Check for pbkdf2 key derivation support
 	_OPENSSL__ARGS=""
@@ -100,12 +240,12 @@ _prereq () {
 	ossl_dist=$(echo $ossl | awk '{print $1}')
 	ossl_ver=$(echo $ossl | awk '{print $2}')
 
-	if [ "$ossl_dist" == "OpenSSL" ]; then
+	if [ "$ossl_dist" = "OpenSSL" ]; then
 	    # Check for OpenSSL version 1.1.1 or newer
 	    if _vergte "$ossl_ver" "1.1.1"; then
 		_OPENSSL_ARGS="-pbkdf2 -iter 50000"
 	    fi
-	elif [ "$ossl_dist" == "LibreSSL" ]; then
+	elif [ "$ossl_dist" = "LibreSSL" ]; then
 	    # Check for LibreSSL version 2.9.1 or newer
 	    if _vergte "$ossl_ver" "2.9.1"; then
 		_OPENSSL_ARGS="-pbkdf2 -iter 50000"
@@ -170,11 +310,10 @@ _sec_to_local () {
 
 # Function to check age of Access keys
 _age_check () {
-    if [ "$AWS_PROFILE" == "" ]; then
+    if [ "$AWS_PROFILE" = "" ]; then
 	_echoerr "ERROR(_age_check): AWS_PROFILE is not set"
 	return 1
     fi
-
     local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE --output json | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
     local TS=$(_string_to_sec $CREATED)
 
@@ -708,84 +847,6 @@ aws-assume-role () {
 	get_console_url
 }
 
-# Display a set of parameters
-_dumpp () {
-	echo "# Parameter set:"
-	for i in ${AWS_PARAMETERS} ; do
-		case $1 in
-			store* | STORE* )
-				printf "# %30s : %s\n" "${i}" "${STORED_AWS_PARAMETERS[$i]}" ;;
-			temp* | TEMP* )
-				printf "# %30s : %s\n" "${i}" "${TEMP_AWS_PARAMETERS[$i]}" ;;
-			"" | current )
-				printf "# %30s : %s\n" "${i}" "${!i}" ;;
-		esac
-	done
-}
-
-# Push the current parameters into an array
-_pushp () {
-	local i j k
-	for i in ${AWS_PARAMETERS} ; do
-	    if [ "${!i}" != "" ]; then
-		case $1 in
-			store* | STORE* )
-					j="STORED_AWS_PARAMETER_${i}" ;;
-			temp* | TEMP* )
-					j="TEMPORARY_AWS_PARAMETER_${i}" ;;
-			* )
-				echo "WARN: you can only push to arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
-				return 1 ;;
-		esac
-		export ${j}="${!i}"
-	    fi
-	done
-}
-
-# Pop an array into the current parameters, skipping the listed parameters
-_popp () {
-	local i j k
-	for i in ${AWS_PARAMETERS} ; do
-		if ! [[ "$* " == *"${i} "* ]] ; then
-			case $1 in
-				store* | STORE* )
-					j="STORED_AWS_PARAMETER_${i}" ;;
-				temp* | TEMP* )
-					j="TEMPORARY_AWS_PARAMETER_${i}" ;;
-				* )
-					echo "WARN: you can only pop from arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
-					return 1 ;;
-			esac
-			if [ "${!j}" != "" ]; then
-			    export ${i}="${!j}"
-			fi
-		fi
-	done
-}
-
-#
-# Clean up the user environment and remove every trace of an aws session
-#
-_aws_reset () {
-	local i j k
-	for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
-		j="STORED_AWS_PARAMETER_${i}"
-		k="TEMPORARY_AWS_PARAMETER_${i}"
-		unset $i $j $k
-	done
-}
-
-#
-# Clean up the user environment, only the AWS env variables
-#
-_aws_reset_vars () {
-	local i
-	for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
-		unset $i
-	done
-}
-
-
 #
 # Help descriptions
 #
@@ -975,9 +1036,9 @@ _session_ok () {
 
 # Utility for initializing variables the first time this utilitie is used in a shell
 # Assumes AWS_PROFILE is set
-_init_aws () {
+_init_aws() {
 
-    if [ "$AWS_PROFILE" == "" ]; then
+    if [ "$AWS_PROFILE" = "" ]; then
 	_echoerr "ERROR(_init_aws): Missing AWS_PROFILE"
 	return 1
     fi
@@ -1001,17 +1062,17 @@ _bashcompletion_sessionhandling () {
     cur=${COMP_WORDS[COMP_CWORD]}
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    if [[ ${cur} == -* ]] ; then
+    if [[ ${cur} = -* ]] ; then
         opts="-h -s -r -l -c -d -p -i -b"
         COMPREPLY=( $(compgen -W "$opts" -- $cur ) )
         return 0
     fi
-    if [[ ${prev} == -p ]] ; then
+    if [[ ${prev} = -p ]] ; then
         profiles=`egrep '^\[profile ' ~/.aws/config | awk '{ print $2}' | sed 's/\]//'`
         COMPREPLY=( $(compgen -W "$profiles" -- $cur ) )
         return 0
     fi
-    if [[ ${prev} == -i ]] ; then
+    if [[ ${prev} = -i ]] ; then
         COMPREPLY=( $(compgen -f -o plusdirs -X '!*.csv' -- "${cur}") )
         return 0
     fi
@@ -1024,12 +1085,12 @@ _bashcompletion_rotate ()  {
     COMPREPLY=()   # Array variable storing the possible completions.
     cur=${COMP_WORDS[COMP_CWORD]}
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    if [[ ${cur} == -* ]] ; then
+    if [[ ${cur} = -* ]] ; then
         opts="-h -t -y -n -p"
         COMPREPLY=( $(compgen -W "$opts" -- $cur ) )
         return 0
     fi
-    if [[ ${prev} == -p ]] ; then
+    if [[ ${prev} = -p ]] ; then
         profiles=`egrep '^\[profile ' ~/.aws/config | awk '{ print $2}' | sed 's/\]//'`
         COMPREPLY=( $(compgen -W "$profiles" -- $cur ) )
         return 0

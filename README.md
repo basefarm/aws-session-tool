@@ -20,6 +20,12 @@ get_console_url <TAB>
 assume_role <TAB>
 ```
 
+In order to use session tool with zsh, you will have to add the following statement to your .zshrc file
+```sh
+autoload -Uz compinit
+```
+
+
 # Synopsis
 
 ```sh
