@@ -23,7 +23,10 @@ assume_role <TAB>
 In order to use session tool with zsh, you will have to add the following statement to your .zshrc file
 ```sh
 autoload -Uz compinit
+compinit
+source PATH-TO-SESSION-TOOL/session-tool.sh
 ```
+Replace PATH-TO-SESSION-TOOL with your path to session-tool.
 
 
 # Synopsis
