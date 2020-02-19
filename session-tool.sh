@@ -209,17 +209,6 @@ _prereq () {
   	fi
   fi
 
-	type $_OPENSSL >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: openssl is not found. session_tools will not work." ; }
-	type date >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: date is not found. session_tools will not work." ; }
-	type aws >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: aws is not found. session_tools will not work." ; }
-	type $_PYTHON >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: $_PYTHON is not found. session_tools will not work." ; }
-	$_PYTHON -c "import json.tool" >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: $_PYTHON json.tool is not found. session_tools will not work." ; }
-	type grep >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: grep is not found. session_tools will not work." ; }
-	type egrep >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: egrep is not found. session_tools will not work." ; }
-	type awk  >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: awk is not found. session_tools will not work." ; }
-	type sed >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: sed is not found. session_tools will not work." ; }
-	type sort >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: sort is not found. session_tools will not work." ; }
-
 	type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
 	type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
 	type aws >/dev/null 2>&1 || echo >&2 "ERROR: aws is not found. session_tools will not work."
