@@ -36,11 +36,8 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 # test, grep, egrep, awk and sed.
 #
 if test -n "$ZSH_VERSION"; then
-  echo "WARN: session_tool for ZSH is in beta :-D"
   PROFILE_SHELL=zsh
   export AWS_SESSION_TOOL=$0:A
-  autoload -Uz bashcompinit
-  bashcompinit -i
   # Pushx the current parameters into an array
   _pushp () {
   	local i j k
@@ -1346,6 +1343,10 @@ function rotate_credentials() {
 case $- in
 *i*)    # interactive shell
   # Execute _prereq to actually verify prerequisites:
+  if test -n "$ZSH_VERSION"; then
+    autoload -Uz bashcompinit
+    bashcompinit -i
+  fi
   _prereq
   # Check for new version
   _upgrade_check
