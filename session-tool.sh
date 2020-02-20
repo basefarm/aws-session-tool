@@ -274,11 +274,12 @@ _upgrade_check() {
 _string_to_sec () {
     case $OSTYPE in
 	darwin*)
-	    _S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $1 +%s)
-	    _LOCAL=$(date -j -r $_S);;
+	    local _STD_TIME=$(echo "$1" | sed -E 's/([+|-])([0-9]{2}):([0-9]{2})$/\1\2\3/;s/Z$/+0000/')
+	    local _S=$(date -j -u -f '%Y-%m-%dT%H:%M:%S%z' $_STD_TIME +%s)
+	    local _LOCAL=$(date -j -r $_S);;
 	*)
-	    _S=$(date -d $1 +%s)
-	    _LOCAL=$(date -d $1);;
+	    local _S=$(date -d $1 +%s)
+	    local _LOCAL=$(date -d $1);;
     esac
     echo "$_S,$_LOCAL"
 }
@@ -647,14 +648,9 @@ get_session() {
 		# Unset ROLE specific variables, as this session is now "plain"
 		unset AWS_ROLE_ALIAS
 
-		case $OSTYPE in
-			darwin*)
-				export AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
-				export AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
-			*)
-				export AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
-				export AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
-		esac
+		local TS=$(_string_to_sec $AWS_EXPIRATION)
+		export AWS_EXPIRATION_S=$(echo $TS | awk -F, '{print $1}')
+		export AWS_EXPIRATION_LOCAL=$(echo $TS | awk -F, '{print $2}')
 		export AWS_ACCESS_KEY_ID AWS_EXPIRATION AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 		_pushp STORED_AWS_PARAMETERS
 	fi
@@ -816,14 +812,9 @@ _sts_assume_role () {
 		return 1
 	fi
 
-	case $OSTYPE in
-		darwin*)
-			AWS_EXPIRATION_S=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' $AWS_EXPIRATION +%s)
-			AWS_EXPIRATION_LOCAL=$(date -j -r $AWS_EXPIRATION_S);;
-		*)
-			AWS_EXPIRATION_S=$(date -d $AWS_EXPIRATION +%s)
-			AWS_EXPIRATION_LOCAL=$(date -d $AWS_EXPIRATION);;
-		esac
+	local TS=$(_string_to_sec $AWS_EXPIRATION)
+	export AWS_EXPIRATION_S=$(echo $TS | awk -F, '{print $1}')
+	export AWS_EXPIRATION_LOCAL=$(echo $TS | awk -F, '{print $2}')
 	return 0
 }
 
