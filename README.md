@@ -1,6 +1,6 @@
 # Description
 
-This is a bash shell tool for maintaining AWS credentials in one or more shells and switching between AWS accounts.
+This is a bash and zsh shell tool for maintaining AWS credentials in one or more shells and switching between AWS accounts.
 
 # Getting started using this tool
 
