@@ -1,4 +1,3 @@
-#!/bin/bash
 SESSION_TOOL_VERSION=1.5.7
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 #
