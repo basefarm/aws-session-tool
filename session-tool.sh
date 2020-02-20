@@ -1,21 +1,7 @@
 SESSION_TOOL_VERSION=1.5.7
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
-#
-# Bash utility to
-# 1) create a session token in the users environment from existing credentials,
-#    optionally using MFA, and optionally storing the session encrypted on disk.
-# 2) assuming a role in another AWS account using the session token.
-# 3) constructing a URL for assuming a role from the session token, but for accessing
-#    the AWS console instead.
-# 4) maintain a list of roles from a configurable bucket, using the same credentials.
-# 5) facilitate the rotation of credentials, ie password and access keys.
-# The utility is supposed to work on both linux and mac.
-#
-# It should work well with terraform, using the assume_role
-# function of the aws provider.
-# Please refer to the repository wiki for more documentation regarding
-# S3 buckets, policies and rolefiles
-#
+# Bash utility to manage AWS sessions, please see usage per command or
+# https://github.com/basefarm/aws-session-tool
 
 #
 # Prerequisits:
