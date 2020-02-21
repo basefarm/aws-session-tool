@@ -172,14 +172,23 @@ The tree first are mandatory, while `external_id` is optional, end the line afte
 
 # Prerequisites
 
-You must have an up-to-date version of the AWS CLI installed on top of Python 3.
+This tool supports both AWS CLI version 1 and 2.
+
+For AWS CLI v1 you must have an up-to-date version of the AWS CLI installed on top of Python 3.
+
+For AWS CLI v2 you only need it installed.
+
 You must have an IAM user with credentials profile stored in your `~/.aws/credentials` file.
-This is usually done using the `aws configure` command.
-The list of roles are downloaded (`get_session -d -p <PROFILENAME>`) from an S3 bucket configured like this: `aws configure set session-tool_bucketname <BUCKETNAME> --profile <PROFILENAME>`. This of course requires that your IAM user credentials allow access to the bucket.  
-If you have a profile which you normally use, you can set it as the default choice for session-tool with `aws configure set default.session_tool_default_profile <PROFILENAME>`
-These commands assume that you have a profile called *awsops*. You might use a
-different name, but must then provide the profile name when initializing
-a session.
+This is usually accompished by importing your credentials from AWS using the import (`-i` option) function
+of session tool.
+
+The list of roles are downloaded (`-d`) from an S3 bucket configured using the `-b` option when
+setting up session tool using the import command (`-i`).
+
+By default session tool will create a profile called `awsops`. Other profiles in your aws envrionment
+can co-exist without interference.
+
+Various external dependecies:
 
 * `openssl`   Used to encrypt/decrypt session state to file.
               Only needed if you use the -s or -r
@@ -202,19 +211,16 @@ Required for cli access to aws resources:
 * `AWS_SESSION_TOKEN`
 * `AWS_ACCESS_KEY_ID`
 * `AWS_SECRET_ACCESS_KEY_ID`
-* `AWS_PROFILE` The name of the credentials profile. Not needed to auth with the above credentials.
 
 Maintained for the user and need the for the tool itself:
-* `AWS_EXPIRATION_LOCAL` The time when the current session expires in the current locale.
-* `AWS_CONSOLE_URL` The URL to the aws console, created by the assume_role command.
-* `AWS_CONSOLE_URL_EXPIRATION_LOCAL` The time when the aws console url session expires in the current locale.
+* `AWS_SESSION_TOOL` Full path and filename of the session tool itself.
+* `AWS_PROFILE` The name of the credentials profile. Not needed to auth with the above credentials.
 * `AWS_USER` The arn of the current authenticated user.
 * `AWS_SERIAL` The arn of the MFA instance for the current user.
 * `AWS_ROLE_ALIAS` The alias of the last used role.
-* `AWS_EXPIRATION` The time when the current session expires as received from aws (in Zulu time).
-* `AWS_EXPIRATION_S` The time when the current session expires converted to seconds since the epoch.
-* `AWS_CONSOLE_URL_EXPIRATION` The time when the aws console url session expires as received from aws (in Zulu time).
-* `AWS_CONSOLE_URL_EXPIRATION_S` The time when the aws console url session expires converted to seconds since the epoch.
+* `AWS_EXPIRATION` The time when the current session expires as received from aws (usualy in UTC).
+* `AWS_EXPIRATION_S` The time when the current session expires in seconds since the epoch.
+* `AWS_EXPIRATION_LOCAL` The time when the current session expires in the current locale.
 
 # Example workflow
 
@@ -224,18 +230,19 @@ These examples assume that you already have added the session-tool.sh to your
 Initial setup consists of configuring an AWS profile and adding credentials to it:
 
 ```sh
-aws configure --profile awsops
+get_session -i <api keys csv file> -b <bucket name> -d
 ```
+
+Note that the `-d` flag is used to ensure that organization-wide roles are updated.
 
 The user starts by initializing a session, providing his MFA token:
 
 ```sh
-get_session -d 123456
+get_session 123456
 ```
 
-Note that the `-d` flag is used to ensure that organization-wide roles are updated.
 The user now has his environment populated with AWS variables that are
-suitable to for example run terraform (with assume_role).
+suitable to for example run terraform (with assume_role) or AWS command line operations.
 
 The user then needs to open another terminal and have the credentials follow him.
 First, the user must then store the existing credentials to file:
@@ -254,68 +261,52 @@ credentials:
 get_session -r
 ```
 
-Now the user want's to assume a role within the Basefarm lab environment and
+Now the user want's to assume a role within a specific account and
 perform some `aws` cli commands:
 ```sh
 assume_role -l
-assume_role awsopslab-admin
+assume_role <role name>
 aws iam list-users
 ```
 Then he need to access the AWS management console:
 ```sh
-get_console_url
+get_console_url <role name>
 ```
 The returned URL can then be pasted into a browser to gain temporary access to
 the management console in the context of the assumed account.  
-
-Because the user first ran the assume_role command, the get_console_url will
-just echo the AWS_CONSOLE_URL environment variable and the console session will
-only last until the assume_role session expires.  
 
 At any time (both for the Basefarm main account session and the assume_role
 session) the user can query the AWS_EXPIRATION_LOCAL variable to get the end
 time of the current session.  
 
 Once the assume_role session is expired (after one hour), the credentials are no
-longer valid and the user must either re-authenticate or restore a previously
-saved session.  
+longer valid and the user must either re-authenticate or restore (`-r`) a previously
+saved session.
 
 ## (Long) Example with multiple calls to assume_role  
 
 Since we store a copy of the credentials returned by get_session, we can re-use them for doing
 multiple calls of assume_role and get_console_url:
 ```sh
-[bent@c7vm ~]$ get_session -c
-[bent@c7vm ~]$ get_session 123456
-[bent@c7vm ~]$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
-"basefarm-operations"
-[bent@c7vm ~]$ assume_role bf-awsopslab-admin
-[bent@c7vm ~]$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
-"bf-awsopslab"
-[bent@c7vm ~]$ assume_role bf-awsops-admin
-[bent@c7vm ~]$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
-"basefarm-operations"
-[bent@c7vm ~]$ assume_role bf-awsopslab-admin
-[bent@c7vm ~]$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
-"bf-awsopslab"
-[bent@c7vm ~]$ get_console_url bf-awsops-admin
+$ get_session -c
+$ get_session 123456
+$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
+$ assume_role <role1>
+$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
+$ assume_role <role2>
+$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
+$ get_console_url <role>
 https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=https%3a%2f%2fconsole.aws.amazon.com%2f&SigninToken=xmnh8ELFeXJRaz-qV9jOOVE_m1kqBOu-l1LyabMK7Hc1Sr3EM1HungasdhaskdhjkoBmFObn0DfkJ9Kko.....
-[bent@c7vm ~]$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
-"bf-awsopslab"
-[bent@c7vm ~]$ assume_role bf-awsopslab-failtest
+$ assume_role <role I do not have access to>
 
 An error occurred (AccessDenied) when calling the AssumeRole operation: Not authorized to perform sts:AssumeRole
 ERROR: Unable to obtain session
-[bent@c7vm ~]$ aws iam list-account-aliases | jq ".AccountAliases|.[]"
-"bf-awsopslab"
-[bent@c7vm ~]
 ```  
 # Known issues  
 
 * If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
-* The assume_role command is only able to create sessions that last for one hour. This was an AWS limitation. Once the session has expired, you must re-authenticate or manually restore a previously saved session.
+* The assume_role command is only able to create sessions that last for one hour. This is an AWS limitation. Once the session has expired, you must re-authenticate or manually restore a previously saved session.
 * It is considered best practice to use the built-in assume-role support in terraform, so for terraform purposes you would only use the get_session command. ... and maybe get_console_url when you have trouble figuring out what just got applied
-* Some AWS CLI commands require Python 3 (https://www.linkedin.com/pulse/aws-cli-requires-python3-bent-terp)
 
 # Authors  
 Initial work by [Daniel Abrahamsson](https://github.com/danabr) and [Bent Terp](https://github.com/bentterp), adapted and re-worked by [Bjørn Røgeberg](https://github.com/bjornrog) and [Bent Terp](https://github.com/bentterp).
