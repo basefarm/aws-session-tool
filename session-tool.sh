@@ -1135,7 +1135,7 @@ function rotate_credentials() {
 		return 1
 	fi
 
-	local JSON="$(aws iam get-user --profile ${PROFILE})"
+	local JSON=$(aws iam get-user --output json --profile ${PROFILE})
 	local MYUSERID="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
 	if test "${MYUSERID:0:4}" != "AIDA" ; then
 	  _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
@@ -1160,7 +1160,7 @@ function rotate_credentials() {
 		fi
 	fi
 
-	local JSON="$(AWS_REGION=eu-west-1 aws iam create-access-key --profile ${PROFILE})"
+	local JSON=$(AWS_REGION=eu-west-1 aws --output json iam create-access-key --profile ${PROFILE})
 	local NEWKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
 	local NEWSECRETKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
 	if test "${NEWKEY:0:4}" != "AKIA" ; then
@@ -1190,7 +1190,7 @@ function rotate_credentials() {
 	echo -n "# Verifying new key: 0"
 	for i in `seq 1 30` ; do
 	    tput cub $(echo -n "$prev" | wc -m)
-	    JSON="$(AWS_REGION=eu-west-1 aws iam get-user --profile ${PROFILE} 2>/dev/null)"
+	    JSON=$(AWS_REGION=eu-west-1 aws --output json iam get-user --profile ${PROFILE} 2>/dev/null)
 	    if echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
 		break
 	    fi
@@ -1245,7 +1245,7 @@ function rotate_credentials() {
 	MYKEY="${NEWKEY}" ; MYSECRETKEY="${NEWSECRETKEY}"
 
 	if (( TWOKEYS )) ; then
-		local JSON="$(aws iam create-access-key --profile ${PROFILE} 2>/dev/null)"
+		local JSON=$(aws --output json iam create-access-key --profile ${PROFILE} 2>/dev/null)
 		if ! echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
 			echo -n "# Again, waiting up to 30 secs for IAM to sync "
 			for i in `seq 1 30` ; do
