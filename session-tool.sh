@@ -37,6 +37,7 @@ if test -n "$ZSH_VERSION"; then
     		export ${j}="${(P)i}"
 	    fi
   	done
+	return 0
   }
 
   # Pop an array into the current parameters, skipping the listed parameters
@@ -53,6 +54,7 @@ if test -n "$ZSH_VERSION"; then
   			[ "${(P)j}" != "" ] && export ${i}="${(P)j}"
   		fi
   	done
+	return 0
   }
   #
   # Clean up the user environment, only the AWS env variables
@@ -62,6 +64,7 @@ if test -n "$ZSH_VERSION"; then
   	for i in ${(z)AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
   		unset $i
   	done
+	return 0
   }
   #
   # Clean up the user environment and remove every trace of an aws session
@@ -73,6 +76,7 @@ if test -n "$ZSH_VERSION"; then
   		k="TEMPORARY_AWS_PARAMETER_${i}"
   		unset $i $j $k
   	done
+	return 0
   }
   # Display a set of parameters
   _dumpp () {
@@ -87,6 +91,7 @@ if test -n "$ZSH_VERSION"; then
   				printf "# %30s : %s\n" "${i}" "${(P)i}" ;;
   		esac
   	done
+	return 0
   }
 
 elif test -n "$BASH_VERSION"; then
@@ -106,6 +111,7 @@ elif test -n "$BASH_VERSION"; then
     		export ${j}="${!i}"
 	    fi
   	done
+	return 0
   }
 
   # Pop an array into the current parameters, skipping the listed parameters
@@ -122,6 +128,7 @@ elif test -n "$BASH_VERSION"; then
   			[ "${!j}" != "" ] && export ${i}="${!j}"
   		fi
   	done
+	return 0
   }
   #
   # Clean up the user environment, only the AWS env variables
@@ -131,6 +138,7 @@ elif test -n "$BASH_VERSION"; then
   	for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
   		unset $i
   	done
+	return 0
   }
   #
   # Clean up the user environment and remove every trace of an aws session
@@ -142,6 +150,7 @@ elif test -n "$BASH_VERSION"; then
   		k="TEMPORARY_AWS_PARAMETER_${i}"
   		unset $i $j $k
   	done
+	return 0
   }
   # Display a set of parameters
   _dumpp () {
@@ -156,6 +165,7 @@ elif test -n "$BASH_VERSION"; then
   				printf "# %30s : %s\n" "${i}" "${!i}" ;;
   		esac
   	done
+	return 0
   }
 
 else
@@ -228,6 +238,7 @@ _prereq () {
 
 
 	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
+	return 0
 }
 
 _upgrade_check() {
@@ -254,6 +265,7 @@ _upgrade_check() {
 	    test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
 	    touch $check_file
 	fi
+	return 0
 }
 
 _string_to_sec () {
@@ -267,6 +279,7 @@ _string_to_sec () {
 	    local _LOCAL=$(date -d $1);;
     esac
     echo "$_S,$_LOCAL"
+    return 0
 }
 
 _sec_to_local () {
@@ -277,6 +290,7 @@ _sec_to_local () {
 	    _LOCAL=$(date --date="@$1");;
     esac
     echo "$_LOCAL"
+    return 0
 }
 
 
@@ -312,6 +326,7 @@ _age_check () {
 	echo "  rotate_credentials -n -p ${AWS_PROFILE}"
 	return 1
     fi
+    return 0
 }
 
 # Check for existence of certain file in session tool S3 bucket.
@@ -330,6 +345,7 @@ _motd_check() {
 	    fi
 	fi
     fi
+    return 0
 }
 
 
@@ -656,6 +672,7 @@ get_session() {
 			AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
 EOF
 	fi
+    return 0
 }
 
 assume_role () {
@@ -674,7 +691,6 @@ assume_role () {
 	if ! _check_exists_rolefiles ; then return 1 ; fi
 
 	_sts_assume_role $* ; return $?
-
 }
 
 get_console_url () {
@@ -705,6 +721,7 @@ get_console_url () {
 	fi
 	# fi
 
+    return 0
 }
 _check_exists_rolefiles () {
 	local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
@@ -721,6 +738,7 @@ _check_exists_profile () {
 	if test -z "$PROFILE" ; then
 		return 1
 	fi
+    return 0
 }
 _list_roles () {
 	local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
@@ -741,6 +759,7 @@ _list_roles () {
 			return 1
 		fi
 	fi
+    return 0
 }
 _sts_assume_role () {
 	if ! _session_ok STORED ; then
@@ -863,6 +882,7 @@ _get_session_usage() {
 	echo ""
 	echo "See also: get_console_url, assume_role, rotate_credentials."
 	echo "Version: $SESSION_TOOL_VERSION"
+    return 0
 }
 _assume_role_usage () {
 	local ROLE_ALIAS_DEFAULT=${STORED_AWS_PARAMETER_AWS_ROLE_ALIAS:-'<no cached value>'}
@@ -904,7 +924,9 @@ _assume_role_usage () {
 	echo "foo-test arn:aws:iam::0987654321:role/admin bf-awsopslab-admin"
 	echo ""
 	echo "See also: get_session, get_console_url."
+    return 0
 }
+
 _get_console_url_usage () {
 	local ROLE_ALIAS_DEFAULT=${STORED_AWS_PARAMETER_AWS_ROLE_ALIAS:-'<no cached value>'}
 	echo "Usage: get_console_url [-h] [-l] <role alias>"
@@ -928,6 +950,7 @@ _get_console_url_usage () {
 	echo ""
 	echo "See also: get_session, assume_role. The help for assume_role has more"
 	echo "information about roles definitions and files."
+    return 0
 }
 
 # Utility for errormessages
@@ -948,6 +971,7 @@ _rawurlencode() {
 		 encoded+="${o}"
 	done
 	echo "${encoded}"
+    return 0
 }
 
 # Utility functino for checking if there is a current session which has not expired
@@ -1013,6 +1037,7 @@ _init_aws() {
 	_echoerr "DEBUG: SERIAL=$SERIAL"
 	return 1
     fi
+    return 0
 }
 
 _bashcompletion_sessionhandling () {
@@ -1095,6 +1120,7 @@ function _gen_awspw() {
 		fi
 	done
 	echo "${pw}"
+    return 0
 }
 
 function _rotate_credentials_usage () {
@@ -1107,7 +1133,8 @@ function _rotate_credentials_usage () {
 	echo "  -y           Yes, password should also changed."
 	echo "  -n           No, password should not be changed."
 	echo "               If neither -y nor -n is specified, you will be asked whether or not"
-  echo "	             password should be changed."
+	echo "	             password should be changed."
+    return 0
 }
 
 function rotate_credentials() {
@@ -1298,6 +1325,7 @@ function rotate_credentials() {
 		fi
 	fi
 	echo "# Finished"
+    return 0
 }
 
 
