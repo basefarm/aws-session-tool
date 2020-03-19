@@ -118,6 +118,42 @@ from previous calls to get_session. The session credentials are
 then used to assume the given role and finally to create
 a pre-signed URL for console access.
 
+## open_console_session
+
+`open_console_session [-h] [role alias]`
+
+* `-h`          Print this usage.
+* `role alias`  The alias of the role that will temporarily be assumed.
+	        The alias name will be cached, so subsequent calls to
+	        assume_role, get_console_url or open_console_link will
+	        use the cached value.
+
+This command will generate a console URL with a valid session token,
+the URL will be passed to the Google Chrome Browser with a profile
+name that is set to the role alias, this use of profiles will allow
+for multiple sessions to be open within the same Chrome Browser, common
+tabs that use the same assumed role will be grouped within the same
+browser window.
+
+## open_console_link
+
+`open_console_link [-h] [role alias] [URL]`
+
+* `-h`          Print this usage.
+* `role alias`  The alias of the role that will temporarily be assumed.
+	        The alias name will be cached, so subsequent calls to
+	        assume_role, get_console_url or open_console_link will
+	        use the cached value.
+* `URL`         The URL of the resource or location in the AWS Console
+
+This command will generate a link to a resource in the console, with a 
+valid session token, the URL will be passed to the Google Chrome Browser
+with a profile name that is set to the role alias, this use of profiles
+will allow for multiple sessions to be open within the same Chrome Browser,
+common tabs that use the same assumed role will be grouped within the same
+browser window.
+
+
 ## rotate_credentials
 
 `rotate_credentials [-p PROFILE] [-y|-n] [-t]`

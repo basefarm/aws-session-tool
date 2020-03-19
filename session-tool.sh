@@ -723,6 +723,92 @@ get_console_url () {
 
     return 0
 }
+
+open_console_session () {
+	local OPTIND
+
+	# extract options and their arguments into variables. Help and List are dealt with directly
+	while getopts ":h" opt ; do
+		case "$opt" in
+			h		) _open_console_session_usage ; return 0 ;;
+			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
+		esac
+	done
+	shift $((OPTIND-1))
+	if ! _check_exists_rolefiles ; then return 1 ; fi
+
+	if _sts_assume_role $* ; then
+		local SESSION="{\"sessionId\":\"${AWS_ACCESS_KEY_ID}\",\"sessionKey\":\"${AWS_SECRET_ACCESS_KEY}\",\"sessionToken\":\"${AWS_SESSION_TOKEN}\"}"
+		local ENCODED_SESSION=$(_rawurlencode ${SESSION})
+		local URL="https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${ENCODED_SESSION}"
+		local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
+		local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
+		local CONSOLE_URI="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
+		echo ""
+		echo "The Console URL is:"
+		echo ${CONSOLE_URI}
+		case $OSTYPE in
+			darwin*	) open -n -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check ${CONSOLE_URI} ;;
+			linux* ) echo "Path to Chrome Browser has not been set";;
+			cygwin* ) echo "Path to Chrome Browser has not been set";;
+			*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
+		esac
+		_popp TEMP_AWS_PARAMETERS
+	else
+		return 1
+	fi
+	# fi
+
+    return 0
+}
+
+open_console_link () {
+	local OPTIND
+
+	# extract options and their arguments into variables. Help and List are dealt with directly
+	while getopts ":h" opt ; do
+		case "$opt" in
+			h		) _open_console_link_usage ; return 0 ;;
+			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
+			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
+		esac
+	done
+	shift $((OPTIND-1))
+	if ! _check_exists_rolefiles ; then return 1 ; fi
+
+	if _sts_assume_role $* ; then
+		local SESSION="{\"sessionId\":\"${AWS_ACCESS_KEY_ID}\",\"sessionKey\":\"${AWS_SECRET_ACCESS_KEY}\",\"sessionToken\":\"${AWS_SESSION_TOKEN}\"}"
+		local ENCODED_SESSION=$(_rawurlencode ${SESSION})
+		local URL="https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${ENCODED_SESSION}"
+		local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
+		local RESOURCE_LINK 
+		if $1 == "http"* ; then RESOURCE_LINK=$1 ;
+			else RESOURCE_LINK=$2 ;
+		fi
+		echo ""
+		echo "The resource URL is:"
+		echo $RESOURCE_LINK
+		echo ""
+		local CONSOLE=$(_rawurlencode $RESOURCE_LINK)
+		local CONSOLE_URI="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
+		echo "The encoded URL is:"
+		echo ${CONSOLE_URI}
+		case $OSTYPE in
+			darwin*	) open -n -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check ${CONSOLE_URI} ;;
+			linux* ) echo "Path to Chrome Browser has not been set";;
+			cygwin* ) echo "Path to Chrome Browser has not been set";;
+			*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
+		esac
+		_popp TEMP_AWS_PARAMETERS
+	else
+		return 1
+	fi
+	# fi
+
+    return 0
+}
+
 _check_exists_rolefiles () {
 	local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
 	if [ ! -e ~/.aws/${PROFILE}_session-tool_roles.cfg ]; then
@@ -952,6 +1038,73 @@ _get_console_url_usage () {
 	echo "information about roles definitions and files."
     return 0
 }
+
+_open_console_session_usage () {
+	local ROLE_ALIAS_DEFAULT=${STORED_AWS_PARAMETER_AWS_ROLE_ALIAS:-'<no cached value>'}
+	echo "Usage: open_console_session <role alias>"
+	echo ""
+	echo "    role alias  The alias of the role that will temporarily be assumed."
+	echo "                The alias name will be cached, so subsequent calls to"
+	echo "                assume_role, get_console_url or open_console_link will"
+	echo "                use the cached value."
+	echo "                Current cached default: $ROLE_ALIAS_DEFAULT"
+	echo ""
+	echo "This command will generate a console URL with a valid session token,"
+    echo "the URL will be passed to the Google Chrome Browser with a profile"
+	echo "name that is set to the role alias, this use of profiles will allow"
+	echo "for multiple sessions to be open within the same Chrome Browser, common"
+	echo "tabs that use the same assumed role will be grouped within the same"
+	echo "browser window."	
+	echo ""
+	echo "This command will use session credentials stored in the shell"
+	echo "from previous calls to get_session. The session credentials are"
+	echo "then used to temporily assume the given role for the purpose of"
+	echo "obtaining the console URL."
+	echo ""
+	echo "After this, the session credentials from previous calls to get_session"
+	echo "or assume_role will be restored."
+	echo "The console URL will only be valid for one hour,"
+	echo "this is a limitation in the underlaying AWS assume_role function."
+	echo ""
+	echo "See also: get_session, assume_role. The help for assume_role has more"
+	echo "information about roles definitions and files."
+    return 0
+}
+
+_open_console_link_usage () {
+	local ROLE_ALIAS_DEFAULT=${STORED_AWS_PARAMETER_AWS_ROLE_ALIAS:-'<no cached value>'}
+	echo "Usage: open_console_session <role alias> <URL>"
+	echo ""
+	echo "    role alias  The alias of the role that will temporarily be assumed."
+	echo "                The alias name will be cached, so subsequent calls to"
+	echo "                assume_role, get_console_url or open_console_link will"
+	echo "                use the cached value."
+	echo "                Current cached default: $ROLE_ALIAS_DEFAULT"
+	echo ""
+	echo "    URL         The URL of the resource or location in the AWS Console"
+	echo ""
+	echo "This command will generate a link to a resource in the console, with a"
+    echo "valid session token, the URL will be passed to the Google Chrome Browser"
+	echo "with a profile name that is set to the role alias, this use of profiles"
+	echo "will allow for multiple sessions to be open within the same Chrome Browser,"
+	echo "common tabs that use the same assumed role will be grouped within the same"
+	echo "browser window."	
+	echo ""
+	echo "This command will use session credentials stored in the shell"
+	echo "from previous calls to get_session. The session credentials are"
+	echo "then used to temporily assume the given role for the purpose of"
+	echo "obtaining the console URL."
+	echo ""
+	echo "After this, the session credentials from previous calls to get_session"
+	echo "or assume_role will be restored."
+	echo "The console URL will only be valid for one hour,"
+	echo "this is a limitation in the underlaying AWS assume_role function."
+	echo ""
+	echo "See also: get_session, assume_role. The help for assume_role has more"
+	echo "information about roles definitions and files."
+    return 0
+}
+
 
 # Utility for errormessages
 _echoerr() { cat <<< "$@" 1>&2; }
