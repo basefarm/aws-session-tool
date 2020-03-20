@@ -697,11 +697,15 @@ get_console_url () {
 	local OPTIND
 
 	# extract options and their arguments into variables. Help and List are dealt with directly
-	while getopts ":hl" opt ; do
+	local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
+	local OPEN_BROWSER=0
+	while getopts ":hlou:" opt ; do
 		case "$opt" in
-			h		) _get_console_url_usage ; return 0 ;;
-			l		) _list_roles ; return 0 ;;
-			\?	) echo "Invalid option: -$OPTARG" >&2 ;;
+			h   ) _get_console_url_usage ; return 0 ;;
+			l   ) _list_roles ; return 0 ;;
+			o   ) OPEN_BROWSER=1 ;;
+			u   ) CONSOLE=$(_rawurlencode "$OPTARG");;
+			\?  ) echo "Invalid option: -$OPTARG" >&2 ;;
 			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
 		esac
 	done
@@ -713,8 +717,17 @@ get_console_url () {
 		local ENCODED_SESSION=$(_rawurlencode ${SESSION})
 		local URL="https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${ENCODED_SESSION}"
 		local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
-		local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
-		echo "https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
+                local CONSOLE_URI="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
+		if [ "$OPEN_BROWSER" = "1" ]; then
+		    case $OSTYPE in
+                        darwin* ) open -n -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check --profile-directory="${AWS_ROLE_ALIAS}" "${CONSOLE_URI}" ;;
+                        linux* ) echo "Path to Chrome Browser has not been set";;
+                        cygwin* ) echo "Path to Chrome Browser has not been set";;
+                        *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
+                    esac
+		else
+		    echo "$CONSOLE_URI"
+		fi
 		_popp TEMP_AWS_PARAMETERS
 	else
 		return 1
@@ -749,7 +762,7 @@ open_console_session () {
 		echo "The Console URL is:"
 		echo ${CONSOLE_URI}
 		case $OSTYPE in
-			darwin*	) open -n -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check ${CONSOLE_URI} ;;
+			darwin*	) open -n -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check --profile-directory $1  ${CONSOLE_URI} ;;
 			linux* ) echo "Path to Chrome Browser has not been set";;
 			cygwin* ) echo "Path to Chrome Browser has not been set";;
 			*) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
