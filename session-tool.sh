@@ -699,11 +699,13 @@ get_console_url () {
 	# extract options and their arguments into variables. Help and List are dealt with directly
 	local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
 	local OPEN_BROWSER=0
-	while getopts ":hlou:" opt ; do
+	local PROFILE=0
+	while getopts ":hlopu:" opt ; do
 		case "$opt" in
 			h   ) _get_console_url_usage ; return 0 ;;
 			l   ) _list_roles ; return 0 ;;
 			o   ) OPEN_BROWSER=1 ;;
+			p   ) PROFILE=1 ;;
 			u   ) CONSOLE=$(_rawurlencode "$OPTARG");;
 			\?  ) echo "Invalid option: -$OPTARG" >&2 ;;
 			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
@@ -719,8 +721,12 @@ get_console_url () {
 		local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
                 local CONSOLE_URI="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
 		if [ "$OPEN_BROWSER" = "1" ]; then
+		    local PROFILE_OPT="--profile-directory=Default"
+		    if [ "$PROFILE" = "1" ]; then
+			PROFILE_OPT="--profile-directory=${AWS_ROLE_ALIAS}"
+		    fi
 		    case $OSTYPE in
-                        darwin* ) open -n -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check --profile-directory="${AWS_ROLE_ALIAS}" "${CONSOLE_URI}" ;;
+                        darwin* ) open -n -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" ;;
                         linux* ) echo "Path to Chrome Browser has not been set";;
                         cygwin* ) echo "Path to Chrome Browser has not been set";;
                         *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
