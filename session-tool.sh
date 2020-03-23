@@ -699,15 +699,16 @@ get_console_url () {
 	# extract options and their arguments into variables. Help and List are dealt with directly
 	local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
 	local OPEN_BROWSER=0
-	local PROFILE=0
-	while getopts ":hlopu:" opt ; do
+	local DEFAULT_PROFILE=0
+	while getopts ":hlodu:" opt ; do
 		case "$opt" in
 			h   ) _get_console_url_usage ; return 0 ;;
 			l   ) _list_roles ; return 0 ;;
 			o   ) OPEN_BROWSER=1 ;;
-			p   ) PROFILE=1 ;;
+			d   ) DEFAULT_PROFILE=1 ;;
 			u   ) CONSOLE=$(_rawurlencode "$OPTARG");;
-			\?  ) echo "Invalid option: -$OPTARG" >&2 ;;
+			\?  ) echo "Invalid option: -$OPTARG" >&2
+			      return 1 ;;
 			:		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
 		esac
 	done
@@ -721,12 +722,16 @@ get_console_url () {
 		local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
                 local CONSOLE_URI="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
 		if [ "$OPEN_BROWSER" = "1" ]; then
-		    local PROFILE_OPT="--profile-directory=Default"
-		    if [ "$PROFILE" = "1" ]; then
-			PROFILE_OPT="--profile-directory=${AWS_ROLE_ALIAS}"
+		    CHROME="$(aws configure get session-tool_chrome --profile ${PROFILE} 2>/dev/null)"
+		    if [ "$CHROME" = "" ]; then
+			CHROME="/Applications/Google Chrome.app"
+		    fi
+		    local PROFILE_OPT="--profile-directory=${AWS_ROLE_ALIAS}"
+		    if [ "$DEFAULT_PROFILE" = "1" ]; then
+			PROFILE_OPT="--profile-directory=Default"
 		    fi
 		    case $OSTYPE in
-                        darwin* ) open -n -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" ;;
+                        darwin* ) open -n -a "$CHROME" --args --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" ;;
                         linux* ) echo "Path to Chrome Browser has not been set";;
                         cygwin* ) echo "Path to Chrome Browser has not been set";;
                         *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
@@ -1039,7 +1044,7 @@ _get_console_url_usage () {
 	echo "    -h          Print this usage."
 	echo "    -l          List available role aliases."
 	echo "    -o          Open URL in browser."
-	echo "    -p          Open in role specific profile in Chrome."
+	echo "    -d          Open URL in the Default profile in Chrome."
 	echo "    -u <url>    Open the specific URL and not the default AWS dashboard."
 	echo "    role alias  The alias of the role that will temporarily be assumed."
 	echo "                The alias name will be cached, so subsequent calls to"
