@@ -722,18 +722,24 @@ get_console_url () {
 		local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
                 local CONSOLE_URI="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
 		if [ "$OPEN_BROWSER" = "1" ]; then
-		    CHROME="$(aws configure get session-tool_chrome --profile ${PROFILE} 2>/dev/null)"
-		    if [ "$CHROME" = "" ]; then
-			CHROME="/Applications/Google Chrome.app"
-		    fi
+		    local CHROME="$(aws configure get session-tool_chrome --profile ${AWS_PROFILE} 2>/dev/null)"
 		    local PROFILE_OPT="--profile-directory=${AWS_ROLE_ALIAS}"
 		    if [ "$DEFAULT_PROFILE" = "1" ]; then
 			PROFILE_OPT="--profile-directory=Default"
 		    fi
 		    case $OSTYPE in
-                        darwin* ) open -n -a "$CHROME" --args --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" ;;
-                        linux* ) echo "Path to Chrome Browser has not been set";;
-                        cygwin* ) echo "Path to Chrome Browser has not been set";;
+                        darwin* )
+			    if [ "$CHROME" = "" ]; then
+				CHROME="/Applications/Google Chrome.app"
+			    fi
+			    open -n -a "$CHROME" --args --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" ;;
+                        linux* )
+			    if [ "$CHROME" = "" ]; then
+				CHROME="/usr/bin/google-chrome"
+			    fi
+			    "$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" ;;
+			    echo "Path to Chrome Browser has not been set";;
+                        cygwin* ) echo "The -o option is not supported on CygWin";;
                         *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
                     esac
 		else
