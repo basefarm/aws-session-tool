@@ -737,7 +737,7 @@ get_console_url () {
 			    if [ "$CHROME" = "" ]; then
 				CHROME="/usr/bin/google-chrome"
 			    fi
-			    "$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" 2>&1 >/dev/null | head -3 & ;;
+			    "$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" 2>&1  head -3 & ;;
                         cygwin* ) echo "The -o option is not supported on CygWin";;
                         *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
                     esac
