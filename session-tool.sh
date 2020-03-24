@@ -699,13 +699,13 @@ get_console_url () {
 	# extract options and their arguments into variables. Help and List are dealt with directly
 	local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
 	local OPEN_BROWSER=0
-	local DEFAULT_PROFILE=0
+	local OPEN_BROWSER_DEFAULT_PROFILE=0
 	while getopts ":hlodu:" opt ; do
 		case "$opt" in
 			h   ) _get_console_url_usage ; return 0 ;;
 			l   ) _list_roles ; return 0 ;;
 			o   ) OPEN_BROWSER=1 ;;
-			d   ) DEFAULT_PROFILE=1 ;;
+			d   ) OPEN_BROWSER_DEFAULT_PROFILE=1 ;;
 			u   ) CONSOLE=$(_rawurlencode "$OPTARG");;
 			\?  ) echo "Invalid option: -$OPTARG" >&2
 			      return 1 ;;
@@ -721,10 +721,10 @@ get_console_url () {
 		local URL="https://signin.aws.amazon.com/federation?Action=getSigninToken&Session=${ENCODED_SESSION}"
 		local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
                 local CONSOLE_URI="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
-		if [ "$OPEN_BROWSER" = "1" ]; then
+		if [ "$OPEN_BROWSER" = "1" -o "$OPEN_BROWSER_DEFAULT_PROFILE" = "1" ]; then
 		    local CHROME="$(aws configure get session-tool_chrome --profile ${AWS_PROFILE} 2>/dev/null)"
 		    local PROFILE_OPT="--profile-directory=${AWS_ROLE_ALIAS}"
-		    if [ "$DEFAULT_PROFILE" = "1" ]; then
+		    if [ "$OPEN_BROWSER_DEFAULT_PROFILE" = "1" ]; then
 			PROFILE_OPT="--profile-directory=Default"
 		    fi
 		    case $OSTYPE in
@@ -1044,29 +1044,27 @@ _assume_role_usage () {
 
 _get_console_url_usage () {
 	local ROLE_ALIAS_DEFAULT=${STORED_AWS_PARAMETER_AWS_ROLE_ALIAS:-'<no cached value>'}
-	echo "Usage: get_console_url [-h] [-l] <role alias>"
+	echo "Usage: get_console_url [-h] [-l] [-o|-d] [-u <url>] <role alias>"
 	echo ""
 	echo "    -h          Print this usage."
 	echo "    -l          List available role aliases."
-	echo "    -o          Open URL in browser."
-	echo "    -d          Open URL in the Default profile in Chrome."
+	echo "    -o          Open URL in browser using a role specific profile."
+	echo "    -d          Open URL in browser using the Default profile."
 	echo "    -u <url>    Open the specific URL and not the default AWS dashboard."
 	echo "    role alias  The alias of the role that will temporarily be assumed."
 	echo "                The alias name will be cached, so subsequent calls to"
 	echo "                assume_role or get_console_url will use the cached value."
 	echo "                Current cached default: $ROLE_ALIAS_DEFAULT"
 	echo ""
-	echo "This command will use session credentials stored in the shell"
-	echo "from previous calls to get_session The session credentials are"
-	echo "then used to temporily assume the given role for the purpose of"
-	echo "obtaining the console URL."
+	echo "This command will use session credentials stored in the shell from a previous"
+	echo "call to get_session The session credentials are then used to temporily assume"
+	echo "the given role for the purpose of obtaining the console URL."
 	echo ""
-	echo "After this, the session credentials from previous calls to get_session"
-	echo "or assume_role will be restored."
-	echo "The console URL will only be valid for one hour,"
+	echo "After this, the session credentials from a previous call to get_session or"
+	echo "assume_role will be restored. The console URL will only be valid for one hour,"
 	echo "this is a limitation in the underlaying AWS assume_role function."
 	echo ""
-	echo "The -o and -p options are currently only supported on Mac OS and Linux and"
+	echo "The -o and -d options are currently only supported on Mac OS and Linux and"
 	echo "only using the Chrome browser. You can select which browser binary to use"
 	echo "by setting the session-tool_chrome configuration parameter in your ~/.aws/config file:"
 	echo "  $ aws configure set session-tool_chrome \"/Applications/Google Chrome.app\" --profile awsops"
