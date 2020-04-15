@@ -87,7 +87,7 @@ Session state is stored in: `~/.aws/[profile].aes` encrypted with a passphrase.
 
 ## assume_role
 
-`assume_role [-h] [-l] [role alias]`
+`assume_role [-h] [-l] <role alias>`
 
 * `-h`          Print this usage.
 * `-l`          List available role aliases.
@@ -98,11 +98,32 @@ This command will use session credentials stored in the shell
 from previous calls to get_session The session credentials are
 then used to assume the given role.
 
+The session credentials for the assumed role will replace the
+current session in the shell environment. The only way to retrieve
+the current session after an assume_role is to have stored your
+session using get_session with the -s option and then to
+import them again using get_session -r command.
+
 The assumed role credentials will only be valid for one hour,
 this is a limitation in the underlaying AWS assume_role function.
 
 The selected role alias will be cached in the AWS_ROLE_ALIAS environment
 variable, so you do not have to provide it on subsequent calls to assume_role.
+
+Roles are configured in locally in ~/.aws/awsops_roles.cfg, and
+organization-wide in ~/.aws/awsops_session-tool_roles.cfg. The format of that file
+is as follows. Comment lines begin with #. No other type of comments
+are allowed. One line per role and each line is space separated.
+The role alias is a name you choose as a shortname for the role.
+external_id is optional.
+
+Alias role_arn session_name external_id
+
+Example:
+# Roles for assume_role
+# Alias role_arn session_name external_id
+bf-awsopslab-admin arn:aws:iam::1234567890:role/admin bf-awsopslab-admin BF-AWSOpsLab
+foo-test arn:aws:iam::0987654321:role/admin bf-awsopslab-admin
 
 ## get_console_url
 
