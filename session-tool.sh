@@ -1,4 +1,4 @@
-SESSION_TOOL_VERSION=1.5.9
+SESSION_TOOL_VERSION=1.6.0
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 # Bash utility to manage AWS sessions, please see usage per command or
 # https://github.com/basefarm/aws-session-tool
