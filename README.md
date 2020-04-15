@@ -7,8 +7,9 @@ This is a bash and zsh shell tool for maintaining AWS credentials in one or more
 Requirements:
 * Clone the repo or download only the `session-tool.sh` file.
 * python and pip installed
-* Install the [AWS Command Line tools](https://aws.amazon.com/cli/). AWS official [installation documentation](https://docs.aws.amazon.com/cli/latest/userguide/installing.html).
+* Install the [AWS Command Line tools](https://aws.amazon.com/cli/). AWS official [installation documentation](https://docs.aws.amazon.com/cli/latest/userguide/installing.html). Both AWS CLI version 1 and version 2 are supported. For new installs, version 2 is recommended.
 * Know the bucket name where your organizations roles are defined
+* Session tool is a bash tool, but on Mac OSX zsh is also supported.
 
 Log in to your AWS account and download a set of API keys. Save the csv file to your computer.
 
