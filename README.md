@@ -120,10 +120,12 @@ external_id is optional.
 Alias role_arn session_name external_id
 
 Example:
+```
 # Roles for assume_role
 # Alias role_arn session_name external_id
 bf-awsopslab-admin arn:aws:iam::1234567890:role/admin bf-awsopslab-admin BF-AWSOpsLab
 foo-test arn:aws:iam::0987654321:role/admin bf-awsopslab-admin
+```
 
 ## get_console_url
 
