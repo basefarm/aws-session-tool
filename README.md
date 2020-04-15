@@ -108,12 +108,12 @@ variable, so you do not have to provide it on subsequent calls to assume_role.
 
 `get_console_url [-h] [-l] [-o|-d] [-u <url>] <role alias>`
 
-* '-h'          Print this usage.
-* '-l'          List available role aliases.
-* '-o'          Open URL in browser using a role specific profile.
-* '-d'          Open URL in browser using the Default profile.
-* '-u <url>'    Open the specific URL and not the default AWS dashboard.
-* 'role alias'  The alias of the role that will temporarily be assumed.
+* `-h`          Print this usage.
+* `-l`          List available role aliases.
+* `-o`          Open URL in browser using a role specific profile.
+* `-d`          Open URL in browser using the Default profile.
+* `-u <url>`    Open the specific URL and not the default AWS dashboard.
+* `role alias`  The alias of the role that will temporarily be assumed.
                 The alias name will be cached, so subsequent calls to
                 assume_role or get_console_url will use the cached value.
                 Current cached default: <no cached value>
@@ -129,9 +129,9 @@ this is a limitation in the underlaying AWS assume_role function.
 The -o and -d options are currently only supported on Mac OS and Linux and
 only using the Chrome browser. You can select which browser binary to use
 by setting the session-tool_chrome configuration parameter in your ~/.aws/config file:
-```sh
-  $ aws configure set session-tool_chrome "/Applications/Google Chrome.app" --profile awsops
-  $ aws configure set session-tool_chrome "/snap/bin/chromium" --profile awsops
+```
+  aws configure set session-tool_chrome "/Applications/Google Chrome.app" --profile awsops
+  aws configure set session-tool_chrome "/snap/bin/chromium" --profile awsops
 ```
 
 See also: get_session, assume_role. The help for assume_role has more
