@@ -7,8 +7,9 @@ This is a bash and zsh shell tool for maintaining AWS credentials in one or more
 Requirements:
 * Clone the repo or download only the `session-tool.sh` file.
 * python and pip installed
-* Install the [AWS Command Line tools](https://aws.amazon.com/cli/). AWS official [installation documentation](https://docs.aws.amazon.com/cli/latest/userguide/installing.html).
+* Install the [AWS Command Line tools](https://aws.amazon.com/cli/). AWS official [installation documentation](https://docs.aws.amazon.com/cli/latest/userguide/installing.html). Both AWS CLI version 1 and version 2 are supported. For new installs, version 2 is recommended.
 * Know the bucket name where your organizations roles are defined
+* Session tool is a bash tool, but on Mac OSX zsh is also supported.
 
 Log in to your AWS account and download a set of API keys. Save the csv file to your computer.
 
@@ -44,50 +45,58 @@ for managing your AWS session credentials. This is useful for `terraform` and
 
 ## get_session
 
-`get_session [-h] [-s] [-r] [-l] [-c] [-d] [-u] [-p profile] [-i file -b bucket] [MFA token]`
+`get_session [-h] [-s] [-r] [-l] [-c] [-d|-u] [-v] [-i <file> -b <bucket>|-e] [-p <profile>] [<MFA token>]`
 
- * `MFA token`    Your one time token. If not provided, and you provided
-                  the -s option, the current credentials are stored.
- * `-p profile`   The aws credentials profile to use as an auth base.
-                  The provided profile name will be cached, and be the
-                  new default for subsequent calls to get_session.
-                  Default: awsops
- * `-s`           Save the resulting session to persistent storage
-                  for retrieval by other shells. You will be prompted
-                  twice for a passphrase to protect the stored credentials.
- * `-r`           Restore previously saved state. You will be prompted for
-                  the passphrase you stated when storing the session.
- * `-l`           List currently stored sessions including a best guess on
-                  when the session expires based on file modification time.
- * `-c`           Resets session.
- * `-d`           Download a list of organization-wide roles to a profile-
-                  specific file ~/.aws/[profile]_session-tool_roles.cfg
-	                These entries can be overwritten in ~/.aws/[profile]_roles.cfg
-                  Fetching is done before getting the session token, using only
-                  the permissions granted by the profile.
-                  Upstream location and name of the roles list are configurable.
-		  Cannot be combined with other options.
-* `-u`            Uploads ~/.aws/[profile]_session-tool_roles.cfg to the
-	                configured location. Requires more priviledges than download,
-	                so is usually done after assume-role.
-			Cannot be combined with other options.
-* `-i file`	  Import csv file containing api key into your aws profile.
-      		  This will create or replace your api key in the awsops profile.
-* `-b bucket`	  Set bucket name during key import for roles file.
-* `-h`            Print this usage.
 
-This command will on a successful authentication return
-session credentials for the AWS account holding the profile's credentials.
-The credentials are returned in the form of environment variables suitable for
-the `aws` cli and `terraform`. The returned session has a duration of 12 hours.
+* `<MFA token>`  Your one time token. If not provided, and you provided
+                 the -s option, the current credentials are stored.
+* `-p <profile>` The aws credentials profile to use as an auth base.
+                 The provided profile name will be cached, and be the
+                 new default for subsequent calls to get_session.
+                 Current cached profile: master
+                 To avoid having to enter a profile every time, you can
+                 use 'aws configure set default.session_tool_default_profile <PROFILE>'
+* `-s`           Save the resulting session to persistent storage
+                 for retrieval by other shells. You will be prompted
+                 twice for a passphrase to protect the stored credentials.
+                 Note that storing with an empty passphrase does not work.
+* `-r`           Restore previously saved state. You will be promptet for
+                 the passphrase you stated when storing the session.
+* `-l`           List currently stored sessions including a best guess on
+                 when the session expires based on file modification time.
+* `-c`           Resets session, removing all environment variables.
+* `-d`           Download a list of organization-wide roles to a profile-
+                 specific file ~/.aws/[profile]_session-tool_roles.cfg
+                 These entries can be overwritten in ~/.aws/[profile]_roles.cfg
+                 Fetching is done before getting the session token, using only
+                 the permissions granted by the profile.
+                 Upstream location and name of the roles list are configurable.
+                 Cannot be combined with other options.
+* `-u`           Uploads ~/.aws/[profile]_session-tool_roles.cfg to the
+                 configured location. Requires more priviledges than download,
+                 so is usually done after assume-role. Cannot be combined with
+                 other options.
+* `-v`           Verifies that the current session (not profile) is valid
+                 and not expired.
+* `-i <file>`    Import csv file containing api key into your aws profile.
+                 This will create or replace your api key in the awsops profile.
+                 Also used to import from the output generated by the below export.
+* `-e`           Export. Output a command line suitable for import on another host.
+* `-b <bucket>`  Set bucket name during import for roles file.
+* `-h`           Print this usage.
+
+This command will on a successful authentication return session credentials
+for the Basefarm main account. The credentials are returned in the form of
+environment variables suitable for the aws and terraform cli. The returned
+session has a duration of 12 hours.
 
 At least one of -s, -r or MFA token needs to be provided.
 
-Session state is stored in: `~/.aws/[profile].aes` encrypted with a passphrase.
+Session state is stored in `~/.aws/<profile>.aes`, encrypted with a passphrase.
 
 ## assume_role
 
-`assume_role [-h] [-l] [role alias]`
+`assume_role [-h] [-l] <role alias>`
 
 * `-h`          Print this usage.
 * `-l`          List available role aliases.
@@ -98,25 +107,67 @@ This command will use session credentials stored in the shell
 from previous calls to get_session The session credentials are
 then used to assume the given role.
 
+The session credentials for the assumed role will replace the
+current session in the shell environment. The only way to retrieve
+the current session after an assume_role is to have stored your
+session using get_session with the -s option and then to
+import them again using get_session -r command.
+
 The assumed role credentials will only be valid for one hour,
 this is a limitation in the underlaying AWS assume_role function.
 
 The selected role alias will be cached in the AWS_ROLE_ALIAS environment
 variable, so you do not have to provide it on subsequent calls to assume_role.
 
+Roles are configured in locally in ~/.aws/awsops_roles.cfg, and
+organization-wide in ~/.aws/awsops_session-tool_roles.cfg. The format of that file
+is as follows. Comment lines begin with #. No other type of comments
+are allowed. One line per role and each line is space separated.
+The role alias is a name you choose as a shortname for the role.
+external_id is optional.
+
+Alias role_arn session_name external_id
+
+Example:
+```
+# Roles for assume_role
+# Alias role_arn session_name external_id
+bf-awsopslab-admin arn:aws:iam::1234567890:role/admin bf-awsopslab-admin BF-AWSOpsLab
+foo-test arn:aws:iam::0987654321:role/admin bf-awsopslab-admin
+```
+
 ## get_console_url
 
-`get_console_url [-h] [-l] [role alias]`
+`get_console_url [-h] [-l] [-o|-d] [-u <url>] <role alias>`
 
 * `-h`          Print this usage.
 * `-l`          List available role aliases.
-* `role alias`  The alias of the role to assume. The alias name will be cached,
-                so subsequent calls to get_console_url will use the cached value.
+* `-o`          Open URL in browser using a role specific profile.
+* `-d`          Open URL in browser using the Default profile.
+* `-u <url>`    Open the specific URL and not the default AWS dashboard.
+* `role alias`  The alias of the role that will temporarily be assumed.
+                The alias name will be cached, so subsequent calls to
+                assume_role or get_console_url will use the cached value.
+                Current cached default: <no cached value>
 
-This command will use session credentials stored in the shell
-from previous calls to get_session. The session credentials are
-then used to assume the given role and finally to create
-a pre-signed URL for console access.
+This command will use session credentials stored in the shell from a previous
+call to get_session The session credentials are then used to temporily assume
+the given role for the purpose of obtaining the console URL.
+
+After this, the session credentials from a previous call to get_session or
+assume_role will be restored. The console URL will only be valid for one hour,
+this is a limitation in the underlaying AWS assume_role function.
+
+The -o and -d options are currently only supported on Mac OS and Linux and
+only using the Chrome browser. You can select which browser binary to use
+by setting the session-tool_chrome configuration parameter in your ~/.aws/config file:
+```
+  aws configure set session-tool_chrome "/Applications/Google Chrome.app" --profile awsops
+  aws configure set session-tool_chrome "/snap/bin/chromium" --profile awsops
+```
+
+See also: get_session, assume_role. The help for assume_role has more
+information about roles definitions and files.
 
 ## rotate_credentials
 
