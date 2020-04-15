@@ -106,53 +106,36 @@ variable, so you do not have to provide it on subsequent calls to assume_role.
 
 ## get_console_url
 
-`get_console_url [-h] [-l] [role alias]`
+`get_console_url [-h] [-l] [-o|-d] [-u <url>] <role alias>`
 
-* `-h`          Print this usage.
-* `-l`          List available role aliases.
-* `role alias`  The alias of the role to assume. The alias name will be cached,
-                so subsequent calls to get_console_url will use the cached value.
+* '-h'          Print this usage.
+* '-l'          List available role aliases.
+* '-o'          Open URL in browser using a role specific profile.
+* '-d'          Open URL in browser using the Default profile.
+* '-u <url>'    Open the specific URL and not the default AWS dashboard.
+* 'role alias'  The alias of the role that will temporarily be assumed.
+                The alias name will be cached, so subsequent calls to
+                assume_role or get_console_url will use the cached value.
+                Current cached default: <no cached value>
 
-This command will use session credentials stored in the shell
-from previous calls to get_session. The session credentials are
-then used to assume the given role and finally to create
-a pre-signed URL for console access.
+This command will use session credentials stored in the shell from a previous
+call to get_session The session credentials are then used to temporily assume
+the given role for the purpose of obtaining the console URL.
 
-## open_console_session
+After this, the session credentials from a previous call to get_session or
+assume_role will be restored. The console URL will only be valid for one hour,
+this is a limitation in the underlaying AWS assume_role function.
 
-`open_console_session [-h] [role alias]`
+The -o and -d options are currently only supported on Mac OS and Linux and
+only using the Chrome browser. You can select which browser binary to use
+by setting the session-tool_chrome configuration parameter in your ~/.aws/config file:
+```sh
+  $ aws configure set session-tool_chrome "/Applications/Google Chrome.app" --profile awsops
+  $ aws configure set session-tool_chrome "/snap/bin/chromium" --profile awsops
+```
 
-* `-h`          Print this usage.
-* `role alias`  The alias of the role that will temporarily be assumed.
-	        The alias name will be cached, so subsequent calls to
-	        assume_role, get_console_url or open_console_link will
-	        use the cached value.
-
-This command will generate a console URL with a valid session token,
-the URL will be passed to the Google Chrome Browser with a profile
-name that is set to the role alias, this use of profiles will allow
-for multiple sessions to be open within the same Chrome Browser, common
-tabs that use the same assumed role will be grouped within the same
-browser window.
-
-## open_console_link
-
-`open_console_link [-h] [role alias] [URL]`
-
-* `-h`          Print this usage.
-* `role alias`  The alias of the role that will temporarily be assumed.
-	        The alias name will be cached, so subsequent calls to
-	        assume_role, get_console_url or open_console_link will
-	        use the cached value.
-* `URL`         The URL of the resource or location in the AWS Console
-
-This command will generate a link to a resource in the console, with a 
-valid session token, the URL will be passed to the Google Chrome Browser
-with a profile name that is set to the role alias, this use of profiles
-will allow for multiple sessions to be open within the same Chrome Browser,
-common tabs that use the same assumed role will be grouped within the same
-browser window.
-
+See also: get_session, assume_role. The help for assume_role has more
+information about roles definitions and files.
 
 ## rotate_credentials
 
