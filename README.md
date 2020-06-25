@@ -272,6 +272,7 @@ Maintained for the user and need the for the tool itself:
 * `AWS_EXPIRATION` The time when the current session expires as received from aws (usualy in UTC).
 * `AWS_EXPIRATION_S` The time when the current session expires in seconds since the epoch.
 * `AWS_EXPIRATION_LOCAL` The time when the current session expires in the current locale.
+* `TF_VAR_SESSION_TOOL_ROLES` An array where the possible roles for the current session are stored. Intended for use in Terraform's AWS provider as described below.
 
 # Example workflow
 
@@ -353,6 +354,26 @@ $ assume_role <role I do not have access to>
 An error occurred (AccessDenied) when calling the AssumeRole operation: Not authorized to perform sts:AssumeRole
 ERROR: Unable to obtain session
 ```  
+
+## Example of provider.tf
+
+AWS account ID's and role names should be considered confidential information and only shared on a need-to-know basis. So we should not include them in Terraform configurations. On the other hand, [Terraform's ability to use AWS's STS Assume Role functionality](https://www.terraform.io/docs/providers/aws/index.html#assume-role) gives us many advantages. When you do `get_session` the roles available for your profile are stored in an environment variable called `TF_VAR_SESSION_TOOL_ROLES` which makes it available inside Terraform configurations as a map-of-maps variable called `SESSION_TOOL_ROLES`. The example below assumes that you have a role alias called `aws-admin`.
+
+```
+provider "aws" {
+  region                  = "eu-north-1"
+  assume_role {
+    role_arn     = var.SESSION_TOOL_ROLES.aws-admin.role_arn
+    session_name = var.SESSION_TOOL_ROLES.aws-admin.session_name
+    external_id  = var.SESSION_TOOL_ROLES.aws-admin.external_id
+  }
+}
+
+variable SESSION_TOOL_ROLES {
+  type = map
+}
+```
+
 # Known issues  
 
 * If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
