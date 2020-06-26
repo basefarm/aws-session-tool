@@ -374,6 +374,32 @@ variable SESSION_TOOL_ROLES {
 }
 ```
 
+### Example of provider.tf with workspaces
+
+If you use [Terraform workspaces](https://www.terraform.io/docs/commands/workspace/), then this can be combined with the SESSION_TOOL_ROLES.  
+Let's say you have a Terraform configuration where you use the workspaces "dev" and "test", and you have two AWS accounts, aws-dev and aws-test, with an admin role in each.  
+And you have defined two role aliases in your session-tool_roles.cfg file:
+```
+aws-dev-admin  arn:aws:iam::12345678:role/admin aws-admin
+aws-test-admin arn:aws:iam::23456789:role/admin aws-admin
+```
+And this then becomes your provider.tf:
+```
+provider "aws" {
+  region                  = "eu-north-1"
+  assume_role {
+    role_arn     = var.SESSION_TOOL_ROLES["aws-${terraform.workspace}-admin"].role_arn
+    session_name = var.SESSION_TOOL_ROLES["aws-${terraform.workspace}-admin"].session_name
+    external_id  = var.SESSION_TOOL_ROLES["aws-${terraform.workspace}-admin"].external_id
+  }
+}
+
+variable SESSION_TOOL_ROLES {
+  type = map
+}
+```
+Then you use `get_session ######` with your MFA as usual, and then depending on which Terraform workspace you are currently in, Terraform will assume the corresponding role.  
+
 # Known issues  
 
 * If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
