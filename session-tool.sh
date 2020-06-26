@@ -1,4 +1,4 @@
-SESSION_TOOL_VERSION=1.6.0
+SESSION_TOOL_VERSION=1.7.0
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 # Bash utility to manage AWS sessions, please see usage per command or
 # https://github.com/basefarm/aws-session-tool
@@ -237,7 +237,7 @@ _prereq () {
 
 
 
-	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
+	export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS TF_VAR_SESSION_TOOL_ROLES"
 	return 0
 }
 
@@ -575,7 +575,7 @@ get_session() {
 			fi
 
 			local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
-			if echo "$CREDENTIALS" | egrep -qv "^AWS_"; then
+			if echo "$CREDENTIALS" | egrep -qv -e "^AWS_" -e "^TF_VAR_"; then
 				_echoerr "ERROR: Unable to restore your credentials."
 				return 1
 			fi
@@ -656,6 +656,19 @@ get_session() {
 		_pushp STORED_AWS_PARAMETERS
 	fi
 
+	# Export the profile's roles as a TF_VAR so we can reference the role's ARN by using the alias and thus refrain from disclosing role ARNs in the Terraform configuration
+		local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
+		if _check_exists_profile ; then
+			if _check_exists_rolefiles ; then
+				local temp_roles="{ "
+				for myrole in `find ~/.aws -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk -v q='"' '{print $1 " = { role_arn = " q $2 q ", session_name = " q $3 q ", external_id = " q $4 q " }, "}'` ; do 
+					temp_roles="${temp_roles}${myrole} "
+				done
+				temp_roles="${temp_roles} }"
+				export TF_VAR_SESSION_TOOL_ROLES=$temp_roles
+			fi
+		fi
+
 	# Store if requested
 	if $STORE ; then
 		touch ~/.aws/${AWS_PROFILE}.aes
@@ -670,9 +683,11 @@ get_session() {
 			AWS_EXPIRATION='$AWS_EXPIRATION'
 			AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
 			AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
+			TF_VAR_SESSION_TOOL_ROLES='$TF_VAR_SESSION_TOOL_ROLES'
 EOF
 	fi
-    return 0
+
+	return 0
 }
 
 assume_role () {
