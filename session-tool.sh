@@ -1,4 +1,4 @@
-SESSION_TOOL_VERSION=1.6.0
+SESSION_TOOL_VERSION=1.6.1
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 # Bash utility to manage AWS sessions, please see usage per command or
 # https://github.com/basefarm/aws-session-tool
@@ -308,7 +308,7 @@ _age_check () {
     local NOW=$(date +%s)
 
     local WARN_AGE=$( expr 3600 \* 24 \* 60 )
-    local ALLOWED_AGE=$( expr 4600 \* 24 \* 90 )
+    local ALLOWED_AGE=$( expr 3600 \* 24 \* 90 )
     local ALLOWED_AGE_SEC=$( expr $SEC + $ALLOWED_AGE )
     local ALLOWED_AGE_LOCAL=$(_sec_to_local $ALLOWED_AGE_SEC)
 #    local ALLOWED_AGE=$( expr 18 \* 1 \* 1 )
