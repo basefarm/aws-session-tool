@@ -1056,6 +1056,58 @@ _session_ok () {
 	return 0
 }
 
+## Terraform wrapper to enforce good git usage.
+
+_git_check () {
+if [ "$(git ls-files --exclude-standard --others)" ]; then
+    _echoerr "You have untracked files, please add, stage and commit before performing terraform apply"
+    return 1
+fi
+if ! git diff-files --quiet ; then
+    _echoerr "Working tree has unstaged changes, please stage and commit"
+    return 1
+fi
+if ! git diff-index --quiet --cached HEAD --; then
+    _echoerr "You have staged changes that are uncommitted, please commit" >&2
+    return 1
+fi
+
+if ! [ "$(git ls-files --exclude-standard --others)" ]; then
+    if git diff-files --quiet; then
+        if git diff-index --quiet --cached HEAD --; then
+            echo "No uncommited files, performing terraform apply"
+            return 0
+        fi
+    fi
+fi
+}
+
+_terraform_git_check () {
+
+if ! command -v terraform >/dev/null; then 
+    _echoerr "Terraform is not installed"
+
+else
+    export TFPATH="$(which terraform)"
+    terraform () {
+        if ! [ "$(aws configure get disable_git_check)" == "true" ]; then
+            for i in "$@" ; do
+                if [ "$i" == "apply" ]; then
+                echo "Commit check enabled, checking.."
+                echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE}"
+                _git_check
+                fi
+            done
+        else
+            echo "Commit check disabled, to enable again, remove disable_git_check from .aws/config"
+        fi
+
+        if [ $? -eq 0 ]; then
+            $TFPATH "$@"
+        fi
+    }
+fi
+}
 
 # Utility for initializing variables the first time this utilitie is used in a shell
 # Assumes AWS_PROFILE is set
@@ -1380,6 +1432,8 @@ case $- in
   _prereq
   # Check for new version
   _upgrade_check
+  # Checking for terraform, activating wrapper to enforce good git usage.
+  _terraform_git_check
   # Configure bash completetion
   complete -F _bashcompletion_sessionhandling get_session
   complete -F _bashcompletion_rolehandling get_console_url
