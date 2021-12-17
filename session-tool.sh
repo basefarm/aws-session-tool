@@ -1081,7 +1081,7 @@ if ! [ "$(git ls-files --exclude-standard --others)" ]; then
     fi
 fi
 }
-
+#!TODO Consider alternate name for function.
 _terraform_git_check () {
 
 if ! command -v terraform >/dev/null; then 
@@ -1099,8 +1099,13 @@ else
                 fi
             done
         else
-            echo "Commit check disabled, to enable again, remove disable_git_check from .aws/config"
+			for i in "$@" ; do
+                if [ "$i" == "apply" ]; then
+            		echo "Commit check disabled, to enable again, remove disable_git_check from .aws/config"
+				fi
+			done
         fi
+		
 
         if [ $? -eq 0 ]; then
             $TFPATH "$@"
