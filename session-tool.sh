@@ -1068,7 +1068,7 @@ if ! git diff-files --quiet ; then
     return 1
 fi
 if ! git diff-index --quiet --cached HEAD --; then
-    _echoerr "You have staged changes that are uncommitted, please commit" >&2
+    _echoerr "You have staged changes that are uncommitted, please commit"
     return 1
 fi
 
