@@ -1098,7 +1098,8 @@ else
                 _git_check
                 fi
             done
-        else
+		fi
+        if [ "$(aws configure get disable_git_check)" == "true" ]; then
 			for i in "$@" ; do
                 if [ "$i" == "apply" ]; then
             		echo "Commit check disabled, to enable again, remove disable_git_check from .aws/config"
