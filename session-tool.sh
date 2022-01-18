@@ -1063,7 +1063,7 @@ if [ -n "$(git status --porcelain)" ]; then
 	git status
 	return 1
 fi
-if [ -n "$(git rev-list -n 1 HEAD@{upstream}..HEAD)"]; then
+if [ -n "$(git rev-list -n 1 HEAD@{upstream}..HEAD)" ]; then
 	_echoerr "You have unpushed files, please push to branch before apply"
 	return 1
 fi
