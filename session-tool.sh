@@ -1060,11 +1060,14 @@ _session_ok () {
 _git_check () {
 if [ -n "$(git status --porcelain)" ]; then
 	_echoerr "You have uncommitted files, please commit and push before apply"
-	git status --porcelain
+	git status
 	return 1
-else
-	return 0
 fi
+if [ -n "$(git rev-list -n 1 HEAD@{upstream}..HEAD)"]; then
+	_echoerr "You have unpushed files, please push to branch before apply"
+	return 1
+fi
+return 0
 }
 
 
