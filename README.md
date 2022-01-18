@@ -200,11 +200,13 @@ This tool includes a wrapper for terraform that enforces commitment of code in g
 
 This is enabled by default but can be disabled by doing `aws configure set disable_git_check true --profile [profile]`
 
+It can also be disabled in just your working directory by creating an empty file called `disable_git_check`
+
 If you want to disable it globally for the default AWS profile, do `aws configure set disable_git_check true --profile default`
 
 To re-enable, remove disable_git_check from `~/.aws/config`
 
-#!TODO: Write documentation reegarding terraform chdir, and that it is nto suppported.
+Terraform has a `chdir` flag you can set to change directories before applying. When using this wrapper, this is not supported.
 # Files
 
 ## ~/.aws/[profile]_session-tool_roles.cfg
