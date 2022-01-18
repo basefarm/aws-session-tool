@@ -351,7 +351,7 @@ _motd_check() {
 
 # Command for creating a session
 get_session() {
-
+#TODO: Create function and add to get_session to disable git check.
 	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
 	# Ugly hack to support people who want to store their sessions retroactively
 	if test "$*" = "-s" ; then STOREONLY=true ; fi
@@ -1057,62 +1057,46 @@ _session_ok () {
 }
 
 ## Terraform wrapper to enforce good git usage.
-
 _git_check () {
-if [ "$(git ls-files --exclude-standard --others)" ]; then
-    _echoerr "You have untracked files, please add, stage and commit before performing terraform apply"
-    return 1
-fi
-if ! git diff-files --quiet ; then
-    _echoerr "Working tree has unstaged changes, please stage and commit"
-    return 1
-fi
-if ! git diff-index --quiet --cached HEAD --; then
-    _echoerr "You have staged changes that are uncommitted, please commit"
-    return 1
-fi
-
-if ! [ "$(git ls-files --exclude-standard --others)" ]; then
-    if git diff-files --quiet; then
-        if git diff-index --quiet --cached HEAD --; then
-            echo "No uncommited files, performing terraform apply"
-            return 0
-        fi
-    fi
+if [ -n "$(git status --porcelain)" ]; then
+	_echoerr "You have uncommitted files, please commit and push before apply"
+	git status --porcelain
+	return 1
+else
+	return 0
 fi
 }
-#!TODO Consider alternate name for function.
-_terraform_git_check () {
 
-if ! command -v terraform >/dev/null; then 
-    _echoerr "Terraform is not installed"
 
-else
-    export TFPATH="$(which terraform)"
-    terraform () {
-        if ! [ "$(aws configure get disable_git_check)" == "true" ]; then
-            for i in "$@" ; do
-                if [ "$i" == "apply" ]; then
-                echo "Commit check enabled, checking.."
-                echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE}"
-                _git_check
-                fi
-            done
+#!TODO : Check if pushed.
+
+
+_terraform_git_check () {    
+	if [ "$(aws configure get disable_git_check)" == "true" ]; then
+		return 0
+    fi
+	if [ -f ./disable_git_check ]; then
+		return 0	
+	fi
+    if ! [ "$(aws configure get disable_git_check)" == "true" ]; then
+		if ! command -v terraform >/dev/null; then 
+			_echoerr "Terraform is not installed"
+			return 1
 		fi
-        if [ "$(aws configure get disable_git_check)" == "true" ]; then
-			for i in "$@" ; do
-                if [ "$i" == "apply" ]; then
-            		echo "Commit check disabled, to enable again, remove disable_git_check from .aws/config"
-				fi
-			done
-        fi
-		
-
-        if [ $? -eq 0 ]; then
-            $TFPATH "$@"
-        fi
-    }
-fi
+		terraform () {
+		export TFPATH="$(which terraform)"
+		for i in "$@" ; do
+			if [ "$i" == "apply" ]; then
+				echo "Commit check enabled, checking.."
+				echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE} or create a empty file in your working directory called disable_git_check"
+				_git_check
+				if [ $? -eq 0 ]; then
+        			$TFPATH "$@"
+    			fi
+			fi
+		done
+    	}
+	fi
 }
 
 # Utility for initializing variables the first time this utilitie is used in a shell

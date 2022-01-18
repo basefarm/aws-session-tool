@@ -199,8 +199,12 @@ It is included only to provide backwards compatibility.
 This tool includes a wrapper for terraform that enforces commitment of code in git before you can run `terraform apply` in a folder.
 
 This is enabled by default but can be disabled by doing `aws configure set disable_git_check true --profile [profile]`
+
+If you want to disable it globally for the default AWS profile, do `aws configure set disable_git_check true --profile default`
+
 To re-enable, remove disable_git_check from `~/.aws/config`
 
+#!TODO: Write documentation reegarding terraform chdir, and that it is nto suppported.
 # Files
 
 ## ~/.aws/[profile]_session-tool_roles.cfg
