@@ -1070,10 +1070,6 @@ fi
 return 0
 }
 
-
-#!TODO : Check if pushed.
-
-
 _terraform_git_check () {    
 	if [ "$(aws configure get disable_git_check)" == "true" ]; then
 		return 0
