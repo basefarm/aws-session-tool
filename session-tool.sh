@@ -1072,13 +1072,13 @@ return 0
 }
 
 _terraform_git_check () {    
-	if [ "$(aws configure get disable_git_check)" == "true" ]; then
+	if [ "$(aws configure get disable_git_check)" = "true" ]; then
 		return 0
     fi
 	if [ -f ./disable_git_check ]; then
 		return 0	
 	fi
-    if ! [ "$(aws configure get disable_git_check)" == "true" ]; then
+    if ! [ "$(aws configure get disable_git_check)" = "true" ]; then
 		if ! command -v terraform >/dev/null; then 
 			_echoerr "Terraform is not installed"
 			return 1
@@ -1086,7 +1086,7 @@ _terraform_git_check () {
 		terraform () {
 		export TFPATH="$(which terraform)"
 		for i in "$@" ; do
-			if [ "$i" == "apply" ]; then
+			if [ "$i" = "apply" ]; then
 				echo "Commit check enabled, checking.."
 				echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE} or create a empty file in your working directory called disable_git_check"
 				_git_check
