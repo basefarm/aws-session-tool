@@ -1083,8 +1083,8 @@ _terraform_git_check () {
 			_echoerr "Terraform is not installed"
 			return 1
 		fi
-		terraform () {
 		export TFPATH="$(which terraform)"
+		terraform () {
 		for i in "$@" ; do
 			if [ "$i" = "apply" ]; then
 				echo "Commit check enabled, checking.."
