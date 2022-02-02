@@ -1085,22 +1085,45 @@ _terraform_git_check () {
 
 	# Overload terraform command with function call
 	terraform () {
-		# Evaluate if git check is disabled globally
-		if [ "$(aws configure get disable_git_check)" != "true" ]; then
+		# Evaluate if terraform command contains "apply" since we can not be sure of the possition of the subcommand
+		for i in "$@"; do
+			if [ "$i" = "apply" ]; then
+				# Evaluate if git check is disabled globally, this can be a bit slow to execute
+				if [ "$(aws configure get disable_git_check)" != "true" ]; then
 
-			# Evaluate if git check id disabled locally
-			if [ ! -e ./disable_git_check ]; then
+					# Current path, start looking for local git check disable here
+					prefix="$(pwd)"
 
-				# Evaluate if terraform command contains "apply" since we can not be sure of the possition of the subcommand
-				for i in "$@"; do
-					if [ "$i" = "apply" ]; then
+					# Safety feature to avoid infinate loop, 2x the directory seperator "/"
+					max_recursion="$(expr 2 "*"  "$( pwd | tr -dc '/' | awk '{ print length; }')" )"
+
+					# If we found a local disabling file
+					local_disable_found="no"
+
+					# Recursively evaluate if git check is disabled locally until we hit fs root
+					for i in $(seq 0 $max_recursion); do
+						current_check="$prefix/disable_git_check"
+						if [ -e "$current_check" ]; then
+							local_disable_found="yes"
+							echo "Git check locally disabled by $(realpath $current_check)"
+							break
+						fi
+
+						prefix="$prefix/.."
+						# Stop recursion when hitting fs root
+						if [ "$(realpath "$prefix")" = "/" ]; then
+							break
+						fi
+					done
+
+					if [ "$local_disable_found" = "no" ]; then
 						echo "Commit check enabled, checking.."
 						echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE} or create a empty file in your working directory called disable_git_check"
 						_git_check || return $?
 					fi
-				done
+				fi
 			fi
-		fi
+		done
 
 		# Run terraform
 		$TFPATH "$@"
