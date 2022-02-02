@@ -1071,32 +1071,40 @@ fi
 return 0
 }
 
-_terraform_git_check () {    
-	if [ "$(aws configure get disable_git_check)" = "true" ]; then
-		return 0
-    fi
-	if [ -f ./disable_git_check ]; then
-		return 0	
+_terraform_git_check () {
+	if ! command -v terraform >/dev/null; then 
+		_echoerr "Terraform is not installed"
+		return 1
 	fi
-    if ! [ "$(aws configure get disable_git_check)" = "true" ]; then
-		if ! command -v terraform >/dev/null; then 
-			_echoerr "Terraform is not installed"
-			return 1
-		fi
-		export TFPATH="$(which terraform)"
-		terraform () {
-		for i in "$@" ; do
-			if [ "$i" = "apply" ]; then
-				echo "Commit check enabled, checking.."
-				echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE} or create a empty file in your working directory called disable_git_check"
-				_git_check
+
+	# If terraform command does not point to a file assume its a function and unset it
+	[ ! -e "$(command -v terraform)" ] && unset -f terraform
+
+	# Export path to real terraform binary / command
+	export TFPATH="$(which terraform)"
+
+	# Overload terraform command with function call
+	terraform () {
+		# Evaluate if git check is disabled globally
+		if [ "$(aws configure get disable_git_check)" != "true" ]; then
+
+			# Evaluate if git check id disabled locally
+			if [ ! -e ./disable_git_check ]; then
+
+				# Evaluate if terraform command contains "apply" since we can not be sure of the possition of the subcommand
+				for i in "$@"; do
+					if [ "$i" = "apply" ]; then
+						echo "Commit check enabled, checking.."
+						echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE} or create a empty file in your working directory called disable_git_check"
+						_git_check || return $?
+					fi
+				done
 			fi
-			if [ $? -eq 0 ]; then
-        		$TFPATH "$@"
-    		fi
-		done
-    	}
-	fi
+		fi
+
+		# Run terraform
+		$TFPATH "$@"
+	}
 }
 
 # Utility for initializing variables the first time this utilitie is used in a shell
