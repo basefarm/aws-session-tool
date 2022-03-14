@@ -735,9 +735,26 @@ get_console_url () {
 			    open -n -a "$CHROME" --args --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" ;;
                         linux* )
 			    if [ "$CHROME" = "" ]; then
-				CHROME="/usr/bin/google-chrome"
+            OSRELEASE="$(< /proc/sys/kernel/osrelease)"
+            if [[ ${OSRELEASE,,} == *microsoft* ]]; then
+              IS_WSL=true
+              if [[ -f "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" ]]; then
+                CHROME="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
+              elif [[ -f "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe" ]]; then
+                CHROME="/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+              else
+                CHROME="/usr/bin/google-chrome"
+              fi
+            else
+              CHROME="/usr/bin/google-chrome"
+            fi
 			    fi
-			    "$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" 2>&1 | head -3 & ;;
+          if $IS_WSL; then
+            RUN_CHROME=$("$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" &> /dev/null)
+          else
+			      RUN_CHROME=$("$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" 2>&1 | head -3 &)
+          fi
+          $RUN_CHROME ;;
                         cygwin* ) echo "The -o option is not supported on CygWin";;
                         *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
                     esac
