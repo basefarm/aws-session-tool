@@ -351,7 +351,7 @@ _motd_check() {
 
 # Command for creating a session
 get_session() {
-
+#TODO: Create function and add to get_session to disable git check.
 	local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
 	# Ugly hack to support people who want to store their sessions retroactively
 	if test "$*" = "-s" ; then STOREONLY=true ; fi
@@ -1056,6 +1056,79 @@ _session_ok () {
 	return 0
 }
 
+## Terraform wrapper to enforce good git usage.
+_git_check () {
+if [ -n "$(git status --porcelain)" ]; then
+	_echoerr "You have uncommitted files, please commit and push before apply"
+	git status
+	return 1
+fi
+if [ -n "$(git rev-list -n 1 HEAD@{upstream}..HEAD)" ]; then
+	_echoerr "You have unpushed files, please push to branch before apply"
+	git status
+	return 1
+fi
+return 0
+}
+
+_terraform_git_check () {
+	if ! command -v terraform >/dev/null; then 
+		_echoerr "Terraform is not installed"
+		return 1
+	fi
+
+	# If terraform command does not point to a file assume its a function and unset it
+	[ ! -e "$(command -v terraform)" ] && unset -f terraform
+
+	# Export path to real terraform binary / command
+	export TFPATH="$(which terraform)"
+
+	# Overload terraform command with function call
+	terraform () {
+		# Evaluate if terraform command contains "apply" since we can not be sure of the possition of the subcommand
+		for i in "$@"; do
+			if [ "$i" = "apply" ]; then
+				# Evaluate if git check is disabled globally, this can be a bit slow to execute
+				if [ "$(aws configure get disable_git_check)" != "true" ]; then
+
+					# Current path, start looking for local git check disable here
+					prefix="$(pwd)"
+
+					# Safety feature to avoid infinate loop, 2x the directory seperator "/"
+					max_recursion="$(expr 2 "*"  "$( pwd | tr -dc '/' | awk '{ print length; }')" )"
+
+					# If we found a local disabling file
+					local_disable_found="no"
+
+					# Recursively evaluate if git check is disabled locally until we hit fs root
+					for i in $(seq 0 $max_recursion); do
+						current_check="$prefix/disable_git_check"
+						if [ -e "$current_check" ]; then
+							local_disable_found="yes"
+							echo "Git check locally disabled by $(realpath $current_check)"
+							break
+						fi
+
+						prefix="$prefix/.."
+						# Stop recursion when hitting fs root
+						if [ "$(realpath "$prefix")" = "/" ]; then
+							break
+						fi
+					done
+
+					if [ "$local_disable_found" = "no" ]; then
+						echo "Commit check enabled, checking.."
+						echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE} or create a empty file in your working directory called disable_git_check"
+						_git_check || return $?
+					fi
+				fi
+			fi
+		done
+
+		# Run terraform
+		$TFPATH "$@"
+	}
+}
 
 # Utility for initializing variables the first time this utilitie is used in a shell
 # Assumes AWS_PROFILE is set
@@ -1380,6 +1453,8 @@ case $- in
   _prereq
   # Check for new version
   _upgrade_check
+  # Checking for terraform, activating wrapper to enforce good git usage.
+  _terraform_git_check
   # Configure bash completetion
   complete -F _bashcompletion_sessionhandling get_session
   complete -F _bashcompletion_rolehandling get_console_url
