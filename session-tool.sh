@@ -1101,7 +1101,7 @@ _terraform_git_check () {
 
 					# Recursively evaluate if git check is disabled locally until we hit fs root
 					for i in $(seq 0 $max_recursion); do
-						current_check="$prefix/disabley_git_check"
+						current_check="$prefix/disable_git_check"
 						if [ -e "$current_check" ]; then
 							local_disable_found="yes"
 							echo "Git check locally disabled by $(realpath $current_check)"
