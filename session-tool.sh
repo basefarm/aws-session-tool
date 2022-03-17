@@ -748,11 +748,11 @@ get_console_url () {
             else
               CHROME="/usr/bin/google-chrome"
             fi
-			    fi
-          if $IS_WSL; then
+          fi
+          if [[ $IS_WSL ]]; then
             RUN_CHROME=$("$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" &> /dev/null)
           else
-			      RUN_CHROME=$("$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" 2>&1 | head -3 &)
+            RUN_CHROME=$("$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" 2>&1 | head -3 &)
           fi
           $RUN_CHROME ;;
                         cygwin* ) echo "The -o option is not supported on CygWin";;
