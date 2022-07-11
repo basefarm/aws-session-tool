@@ -214,6 +214,7 @@ _prereq () {
 	type awk  >/dev/null 2>&1 || echo >&2 "ERROR: awk is not found. session_tools will not work."
 	type sed >/dev/null 2>&1 || echo >&2 "ERROR: sed is not found. session_tools will not work."
 	type sort >/dev/null 2>&1 || echo >&2 "ERROR: sort is not found. session_tools will not work."
+	type readlink >/dev/null 2>&1 || echo >&2 "ERROR: readlink is not found. session_tool will not work."
 
 	# Check for pbkdf2 key derivation support
 	_OPENSSL__ARGS=""
@@ -1106,13 +1107,13 @@ _terraform_git_check () {
 						current_check="$prefix/disable_git_check"
 						if [ -e "$current_check" ]; then
 							local_disable_found="yes"
-							echo "Git check locally disabled by $(realpath $current_check)"
+							echo "Git check locally disabled by $(readlink -f $current_check)"
 							break
 						fi
 
 						prefix="$prefix/.."
 						# Stop recursion when hitting fs root
-						if [ "$(realpath "$prefix")" = "/" ]; then
+						if [ "$(readlink -f "$prefix")" = "/" ]; then
 							break
 						fi
 					done
