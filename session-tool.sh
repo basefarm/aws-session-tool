@@ -1084,6 +1084,8 @@ _terraform_git_check () {
 
 	# Overload terraform command with function call
 	terraform () {
+	    # Only perform checks if current dir is under git control
+	    if git status &>/dev/null; then
 		# Evaluate if terraform command contains "apply" since we can not be sure of the possition of the subcommand
 		for i in "$@"; do
 			if [ "$i" = "apply" ]; then
@@ -1123,9 +1125,9 @@ _terraform_git_check () {
 				fi
 			fi
 		done
-
-		# Run terraform
-		$TFPATH "$@"
+	      fi
+	    # Run terraform
+	    $TFPATH "$@"
 	}
 }
 
