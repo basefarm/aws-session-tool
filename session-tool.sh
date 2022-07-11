@@ -272,8 +272,8 @@ _string_to_sec () {
     case $OSTYPE in
 	darwin*)
 	    local _STD_TIME=$(echo "$1" | sed -E 's/([+|-])([0-9]{2}):([0-9]{2})$/\1\2\3/;s/Z$/+0000/')
-	    local _S=$(date -j -u -f '%Y-%m-%dT%H:%M:%S%z' $_STD_TIME +%s)
-	    local _LOCAL=$(date -j -r $_S);;
+	    local _S=$(/bin/date -j -u -f '%Y-%m-%dT%H:%M:%S%z' $_STD_TIME +%s)
+	    local _LOCAL=$(/bin/date -j -r $_S);;
 	*)
 	    local _S=$(date -d $1 +%s)
 	    local _LOCAL=$(date -d $1);;
