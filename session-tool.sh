@@ -311,7 +311,6 @@ _age_check () {
     local ALLOWED_AGE=$( expr 3600 \* 24 \* 90 )
     local ALLOWED_AGE_SEC=$( expr $SEC + $ALLOWED_AGE )
     local ALLOWED_AGE_LOCAL=$(_sec_to_local $ALLOWED_AGE_SEC)
-#    local ALLOWED_AGE=$( expr 18 \* 1 \* 1 )
     local AGE=$( expr $NOW - $WARN_AGE )
 
     local MAX_AGE=$( expr $SEC + $WARN_AGE )
