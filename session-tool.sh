@@ -1120,7 +1120,7 @@ _terraform_git_check () {
 
 					if [ "$local_disable_found" = "no" ]; then
 						echo "Commit check enabled, checking.."
-						echo "To disable, do: aws configure set disable_git_check true --profile ${AWS_PROFILE} or create a empty file in your working directory called disable_git_check"
+						echo "To disable, do: 'aws configure set disable_git_check true --profile ${AWS_PROFILE}' or create a empty file in your working directory called disable_git_check"
 						_git_check || return $?
 					fi
 				fi
