@@ -333,14 +333,14 @@ _motd_check() {
   if [ "$AWS_PROFILE" != "" ]; then
     local ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})"
     if [ "$ROLEBUCKET" != "" ]; then
-        local MOTDFILE="$(aws configure get session-tool_motdfile --profile ${AWS_PROFILE})"
-        MOTDFILE="${MOTDFILE:-session-tool_motd.txt}"
-        local LOCALFILE="${HOME}/.aws/${AWS_PROFILE}_${MOTDFILE}"
-        if out="$(aws s3 cp "s3://${ROLEBUCKET}/${MOTDFILE}" "$LOCALFILE" 2>&1)" ; then
-          cat "$LOCALFILE"
-        else
-          rm -f "$LOCALFILE" 2>&1 > /dev/null
-        fi
+      local MOTDFILE="$(aws configure get session-tool_motdfile --profile ${AWS_PROFILE})"
+      MOTDFILE="${MOTDFILE:-session-tool_motd.txt}"
+      local LOCALFILE="${HOME}/.aws/${AWS_PROFILE}_${MOTDFILE}"
+      if out="$(aws s3 cp "s3://${ROLEBUCKET}/${MOTDFILE}" "$LOCALFILE" 2>&1)" ; then
+        cat "$LOCALFILE"
+      else
+        rm -f "$LOCALFILE" 2>&1 > /dev/null
+      fi
     fi
   fi
   return 0
@@ -406,8 +406,8 @@ get_session() {
       _KEY_ID="$(tail -1 "${IMPORT}" | awk -F, '{print $1}')"
       _KEY_SECRET="$(tail -1 "${IMPORT}" | awk -F, '{print $2}')"
       if [ -z "${_KEY_ID}" -o -z "${_KEY_SECRET}" ]; then
-          _echoerr "ERROR: The file '${IMPORT}' does not contain a valid api key-pair."
-          return 1
+        _echoerr "ERROR: The file '${IMPORT}' does not contain a valid api key-pair."
+        return 1
       fi
     fi
     if [ -z "${PROFILE}" ]; then
@@ -1002,8 +1002,8 @@ _rawurlencode() {
   for (( pos=0 ; pos<strlen ; pos++ )); do
     c=${string:$pos:1}
     case "$c" in
-        [-_.~a-zA-Z0-9]	) o="${c}" ;;
-        * 							)	printf -v o '%%%02x' "'$c"
+      [-_.~a-zA-Z0-9]	) o="${c}" ;;
+      * 							)	printf -v o '%%%02x' "'$c"
     esac
     encoded+="${o}"
   done
