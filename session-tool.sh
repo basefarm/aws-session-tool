@@ -350,7 +350,9 @@ _motd_check() {
 # Command for creating a session
 get_session() {
   #TODO: Create function and add to get_session to disable git check.
-  local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false; local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
+  local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
+  local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false
+  local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
   # Ugly hack to support people who want to store their sessions retroactively
   if test "$*" = "-s" ; then STOREONLY=true ; fi
 
