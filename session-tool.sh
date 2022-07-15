@@ -1337,7 +1337,7 @@ function rotate_credentials() {
     fi
     echo -n $i
     prev=$i
-    sleep 1s
+    sleep 1
   done
 
   local MYUSERID="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
@@ -1368,7 +1368,7 @@ function rotate_credentials() {
     fi
     echo -n $i
     prev=$i
-    sleep 1s
+    sleep 1
   done
   echo "Done [$i]"
 
@@ -1394,7 +1394,7 @@ function rotate_credentials() {
         if echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
           break
         fi
-        echo -n "." ; sleep 1s
+        echo -n "." ; sleep 1
       done
     fi
     echo ""
