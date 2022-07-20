@@ -217,7 +217,7 @@ _prereq () {
   type readlink >/dev/null 2>&1 || echo >&2 "ERROR: readlink is not found. session_tool will not work."
 
   # Check for pbkdf2 key derivation support
-  _OPENSSL__ARGS=""
+  _OPENSSL_ARGS=""
   ossl=$($_OPENSSL version)
   ossl_dist=$(echo $ossl | awk '{print $1}')
   ossl_ver=$(echo $ossl | awk '{print $2}')
@@ -661,15 +661,15 @@ get_session() {
     touch ~/.aws/${AWS_PROFILE}.aes
     chmod 600 ~/.aws/${AWS_PROFILE}.aes
     $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
-      AWS_USER='$AWS_USER'
-      AWS_SERIAL='$AWS_SERIAL'
-      AWS_PROFILE='$AWS_PROFILE'
-      AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY'
-      AWS_SESSION_TOKEN='$AWS_SESSION_TOKEN'
-      AWS_ACCESS_KEY_ID='$AWS_ACCESS_KEY_ID'
-      AWS_EXPIRATION='$AWS_EXPIRATION'
-      AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
-      AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
+AWS_USER='$AWS_USER'
+AWS_SERIAL='$AWS_SERIAL'
+AWS_PROFILE='$AWS_PROFILE'
+AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY'
+AWS_SESSION_TOKEN='$AWS_SESSION_TOKEN'
+AWS_ACCESS_KEY_ID='$AWS_ACCESS_KEY_ID'
+AWS_EXPIRATION='$AWS_EXPIRATION'
+AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
+AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
 EOF
   fi
   return 0
