@@ -1,4 +1,4 @@
-SESSION_TOOL_VERSION=1.6.2
+SESSION_TOOL_VERSION=1.6.3
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 # Bash utility to manage AWS sessions, please see usage per command or
 # https://github.com/basefarm/aws-session-tool
@@ -574,7 +574,14 @@ get_session() {
         return 1
       fi
 
-      local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+      if [ "$PROFILE_SHELL" = "bash" ]; then
+	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+      elif [ "$PROFILE_SHELL" = "zsh" ]; then
+	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $=_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+      else
+	  _echoerr "ERROR: Unknown/undefined shell: '$PROFILE_SHELL'"
+	  return 1
+      fi
       if echo "$CREDENTIALS" | egrep -qv "^AWS_"; then
         _echoerr "ERROR: Unable to restore your credentials."
         return 1
@@ -660,7 +667,8 @@ get_session() {
   if $STORE ; then
     touch ~/.aws/${AWS_PROFILE}.aes
     chmod 600 ~/.aws/${AWS_PROFILE}.aes
-    $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+      if [ "$PROFILE_SHELL" = "bash" ]; then
+	  $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
 AWS_SERIAL='$AWS_SERIAL'
 AWS_PROFILE='$AWS_PROFILE'
@@ -671,6 +679,22 @@ AWS_EXPIRATION='$AWS_EXPIRATION'
 AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
 AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
 EOF
+      elif [ "$PROFILE_SHELL" = "zsh" ]; then
+	  $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+AWS_USER='$AWS_USER'
+AWS_SERIAL='$AWS_SERIAL'
+AWS_PROFILE='$AWS_PROFILE'
+AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY'
+AWS_SESSION_TOKEN='$AWS_SESSION_TOKEN'
+AWS_ACCESS_KEY_ID='$AWS_ACCESS_KEY_ID'
+AWS_EXPIRATION='$AWS_EXPIRATION'
+AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
+AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
+EOF
+      else
+	  _echoerr "ERROR: Unknown/undefined shell: '$PROFILE_SHELL'"
+	  return 1
+      fi
   fi
   return 0
 }
