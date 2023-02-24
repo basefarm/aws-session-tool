@@ -1318,7 +1318,7 @@ function rotate_credentials() {
   fi
   if test `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
     if ! (( TWOKEYS )) ; then
-      _echoerr "WARNING: This user already has two sets of access keys. If you wish to rotate both sets, please use the -t flag - but be aware, that the second set of keys will be displayed here on the screen. More information in the wiki."
+      _echoerr "ERROR: You already have two sets of access keys. If you wish to rotate both sets, please use the -t flag."
       return 1
     else
       for k in `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text` ; do
