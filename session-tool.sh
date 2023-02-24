@@ -1100,7 +1100,7 @@ _git_check () {
 
 _terraform_git_check () {
   if ! command -v terraform >/dev/null; then 
-    _echoerr "Terraform is not installed"
+    # Not an error, just do not add the terraform hook
     return 1
   fi
 
