@@ -188,7 +188,8 @@ _vergte() {
 _prereq () {
   type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
   case $OSTYPE in
-    darwin*	) _OPENSSL="/usr/bin/openssl";;
+    darwin* ) _OPENSSL="/usr/bin/openssl";;
+    msys* )   _OPENSSL="/mingw64/bin/openssl";;
     linux* | cygwin* ) _OPENSSL="openssl";;
     *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
   esac
