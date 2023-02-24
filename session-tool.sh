@@ -403,8 +403,11 @@ get_session() {
         _echoerr "ERROR: The file '${IMPORT}' does not exist and it does not contain a valid api key-pair."
         return 1
       fi
-      # Remove "this" command from history, as it contains a clear text secret access key
-      history -d $((HISTCMD-1))
+      if [ "$PROFILE_SHELL" != "zsh" ]; then
+	  # Remove "this" command from history, as it contains a clear text secret access key
+	  # Not supported zsh
+	  history -d $((HISTCMD-1))
+      fi
     else
       _KEY_ID="$(tail -1 "${IMPORT}" | awk -F, '{print $1}')"
       _KEY_SECRET="$(tail -1 "${IMPORT}" | awk -F, '{print $2}')"
