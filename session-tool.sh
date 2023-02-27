@@ -257,7 +257,7 @@ _upgrade_check() {
     current_second=$(date +%s)
     case $OSTYPE in
       darwin*)
-        eval `stat -s -t %s $check_file`
+        eval `/usr/bin/stat -s -t %s $check_file`
         file_second=$st_mtime;;
       *)
         file_second=$(stat --format=%Y $check_file);;
@@ -273,7 +273,7 @@ _upgrade_check() {
 _string_to_sec () {
   case $OSTYPE in
     darwin*)
-      local _STD_TIME=$(echo "$1" | sed -E 's/([+|-])([0-9]{2}):([0-9]{2})$/\1\2\3/;s/Z$/+0000/')
+      local _STD_TIME=$(echo "$1" | /usr/bin/sed -E 's/([+|-])([0-9]{2}):([0-9]{2})$/\1\2\3/;s/Z$/+0000/')
       local _S=$(/bin/date -j -u -f '%Y-%m-%dT%H:%M:%S%z' $_STD_TIME +%s)
       local _LOCAL=$(/bin/date -j -r $_S);;
     *)
@@ -287,7 +287,7 @@ _string_to_sec () {
 _sec_to_local () {
   case $OSTYPE in
   darwin*)
-    _LOCAL=$(date -j -r $1);;
+    _LOCAL=$(/bin/date -j -r $1);;
   *)
     _LOCAL=$(date --date="@$1");;
   esac
@@ -369,7 +369,7 @@ get_session() {
         for f in `ls ~/.aws/*.aes`; do
           local expiry_s=$(expr $(date -r $f '+%s') + 43200 )
           case $OSTYPE in
-            darwin*	) local expiry_l=$(date -r $expiry_s '+%H:%M:%S %Y-%m-%d');;
+            darwin*	) local expiry_l=$(/bin/date -r $expiry_s '+%H:%M:%S %Y-%m-%d');;
             *	) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
           esac
           local profile=$(basename $f .aes)
