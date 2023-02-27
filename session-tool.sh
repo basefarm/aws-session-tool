@@ -187,9 +187,11 @@ _vergte() {
 
 _prereq () {
   type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
+  _WINPTY=""
   case $OSTYPE in
     darwin* ) _OPENSSL="/usr/bin/openssl";;
-    msys* )   _OPENSSL="/mingw64/bin/openssl";;
+    msys* )   _OPENSSL="/mingw64/bin/openssl"
+	      _WINPTY="winpty";;
     linux* | cygwin* ) _OPENSSL="openssl";;
     *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
   esac
@@ -460,6 +462,7 @@ get_session() {
       return 1
     fi
     echo "get_session -p ${PROFILE} -i ${_KEY_ID},${_KEY_SECRET} -b ${BUCKET} -d"
+    return 0
   fi
   if ! ${STOREONLY} ; then
     shift $((OPTIND-1))
@@ -579,9 +582,9 @@ get_session() {
       fi
 
       if [ "$PROFILE_SHELL" = "bash" ]; then
-	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+	  local CREDENTIALS=$($_WINPTY $_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
-	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $=_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+	  local CREDENTIALS=$($_WINPTY $_OPENSSL aes-256-cbc $=_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
       else
 	  _echoerr "ERROR: Unknown/undefined shell: '$PROFILE_SHELL'"
 	  return 1
@@ -672,7 +675,7 @@ get_session() {
     touch ~/.aws/${AWS_PROFILE}.aes
     chmod 600 ~/.aws/${AWS_PROFILE}.aes
       if [ "$PROFILE_SHELL" = "bash" ]; then
-	  $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+	  $_WINPTY $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
 AWS_SERIAL='$AWS_SERIAL'
 AWS_PROFILE='$AWS_PROFILE'
@@ -684,7 +687,7 @@ AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
 AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
 EOF
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
-	  $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+	  $_WINPTY $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
 AWS_SERIAL='$AWS_SERIAL'
 AWS_PROFILE='$AWS_PROFILE'
@@ -801,16 +804,16 @@ _list_roles () {
   local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
   if _check_exists_profile ; then
     if _check_exists_rolefiles ; then
-      find ~/.aws -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
+      find ~/.aws/ -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
     else
       return 1
     fi
   else
-    if [ ! -z "$(find ~/.aws -iname \*_roles.cfg)" ] ; then
+    if [ ! -z "$(find ~/.aws/ -iname \*_roles.cfg)" ] ; then
       echo "# INFO: No AWS_PROFILE specified (can be set by get_session, or a default profile"
       echo "        can be defined with aws configure set default.session_tool_default_profile)"
       echo "#       but some profiles were located, so showing all roles defined:"
-      (find ~/.aws -iname \*_session-tool_roles.cfg ; find ~/.aws -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
+      (find ~/.aws/ -iname \*_session-tool_roles.cfg ; find ~/.aws/ -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
     else
       _echoerr "ERROR: Unable to determine profile. Either specify AWS_PROFILE, do a get_session, or set a default profile with aws configure set default.session_tool_default_profile"
       return 1
@@ -1231,7 +1234,7 @@ _bashcompletion_rolehandling ()  {
 
   local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
 
-  roles=`find ~/.aws -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'`
+  roles=`find ~/.aws/ -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'`
 
   COMPREPLY=( $(compgen -W "$roles" -- $cur ) )
   return 0
