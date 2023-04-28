@@ -187,11 +187,9 @@ _vergte() {
 
 _prereq () {
   type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
-  _WINPTY=""
   case $OSTYPE in
     darwin* ) _OPENSSL="/usr/bin/openssl";;
-    msys* )   _OPENSSL="/mingw64/bin/openssl"
-	      _WINPTY="winpty";;
+    msys* )   _OPENSSL="";;
     linux* | cygwin* ) _OPENSSL="openssl";;
     *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
   esac
@@ -207,7 +205,9 @@ _prereq () {
       fi
   fi
 
-  type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
+  if [ "$_OPENSSL" != "" ]; then
+      type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
+  fi
   type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
   type aws >/dev/null 2>&1 || echo >&2 "ERROR: aws is not found. session_tools will not work."
   type $_PYTHON >/dev/null 2>&1 || echo >&2 "ERROR: $_PYTHON is not found. session_tools will not work."
@@ -219,24 +219,26 @@ _prereq () {
   type sort >/dev/null 2>&1 || echo >&2 "ERROR: sort is not found. session_tools will not work."
   type readlink >/dev/null 2>&1 || echo >&2 "ERROR: readlink is not found. session_tool will not work."
 
-  # Check for pbkdf2 key derivation support
-  _OPENSSL_ARGS=""
-  ossl=$($_OPENSSL version)
-  ossl_dist=$(echo $ossl | awk '{print $1}')
-  ossl_ver=$(echo $ossl | awk '{print $2}')
+  if [ "$_OPENSSL" != "" ]; then
+      # Check for pbkdf2 key derivation support
+      _OPENSSL_ARGS=""
+      ossl=$($_OPENSSL version)
+      ossl_dist=$(echo $ossl | awk '{print $1}')
+      ossl_ver=$(echo $ossl | awk '{print $2}')
 
-  if [ "$ossl_dist" = "OpenSSL" ]; then
-    # Check for OpenSSL version 1.1.1 or newer
-    if _vergte "$ossl_ver" "1.1.1"; then
-      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
-    fi
-  elif [ "$ossl_dist" = "LibreSSL" ]; then
-    # Check for LibreSSL version 2.9.1 or newer
-    if _vergte "$ossl_ver" "2.9.1"; then
-      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
-    fi
-  else
-    echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
+      if [ "$ossl_dist" = "OpenSSL" ]; then
+	  # Check for OpenSSL version 1.1.1 or newer
+	  if _vergte "$ossl_ver" "1.1.1"; then
+	      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
+	  fi
+      elif [ "$ossl_dist" = "LibreSSL" ]; then
+	  # Check for LibreSSL version 2.9.1 or newer
+	  if _vergte "$ossl_ver" "2.9.1"; then
+	      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
+	  fi
+      else
+	  echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
+      fi
   fi
 
   export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_USERNAME AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
@@ -569,6 +571,10 @@ get_session() {
         _echoerr "ERROR: You can not both store and restore state in the same run."
         return 1
       fi
+      if [ "$_OPENSSL" = "" ]; then
+	  _echoerr "ERROR: Store/restore not supported on GIT bash for Windows"
+	  return 1
+      fi
       if [ $# -gt 0 ]; then
         _echoerr "ERROR: You can only combine restore with the profile option."
         return 1
@@ -580,9 +586,9 @@ get_session() {
       fi
 
       if [ "$PROFILE_SHELL" = "bash" ]; then
-	  local CREDENTIALS=$($_WINPTY $_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
-	  local CREDENTIALS=$($_WINPTY $_OPENSSL aes-256-cbc $=_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $=_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
       else
 	  _echoerr "ERROR: Unknown/undefined shell: '$PROFILE_SHELL'"
 	  return 1
@@ -670,10 +676,14 @@ get_session() {
 
   # Store if requested
   if $STORE ; then
+    if [ "$_OPENSSL" = "" ]; then
+	_echoerr "ERROR: Store/restore not supported on GIT bash for Windows"
+	return 1
+    fi
     touch ~/.aws/${AWS_PROFILE}.aes
     chmod 600 ~/.aws/${AWS_PROFILE}.aes
       if [ "$PROFILE_SHELL" = "bash" ]; then
-	  $_WINPTY $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+	  $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
 AWS_USERNAME='$AWS_USERNAME'
 AWS_SERIAL='$AWS_SERIAL'
@@ -686,7 +696,7 @@ AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
 AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
 EOF
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
-	  $_WINPTY $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+	  $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
 AWS_USERNAME='$AWS_USERNAME'
 AWS_SERIAL='$AWS_SERIAL'
@@ -1248,6 +1258,10 @@ function _gen_awspw() {
   local spcchar='@#$%^*()_+-=[]{}'
 
   until (( pwok )) ; do
+    if [ "$_OPENSSL" = "" ]; then
+	_echoerr "ERROR: _gen_awspw not supported on GIT bash for Windows"
+	return 1
+    fi
     local pw="$($_OPENSSL rand -base64 $((${mylen}+2)) )"
     local pwsub="$($_OPENSSL rand -hex 1)"
     local pwplace="$($_OPENSSL rand -hex 1)"
