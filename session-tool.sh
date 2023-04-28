@@ -239,7 +239,7 @@ _prereq () {
     echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
   fi
 
-  export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
+  export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_USERNAME AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
   return 0
 }
 
@@ -393,8 +393,6 @@ get_session() {
       :		) echo "Option -$OPTARG requires an argument." >&2 ; return 1 ;;
     esac
   done
-
-
 
   if [ ! -z "${IMPORT}" ]; then
     # Import the key found in the file or the variable it self
@@ -677,6 +675,7 @@ get_session() {
       if [ "$PROFILE_SHELL" = "bash" ]; then
 	  $_WINPTY $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
+AWS_USERNAME='$AWS_USERNAME'
 AWS_SERIAL='$AWS_SERIAL'
 AWS_PROFILE='$AWS_PROFILE'
 AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY'
@@ -689,6 +688,7 @@ EOF
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
 	  $_WINPTY $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
+AWS_USERNAME='$AWS_USERNAME'
 AWS_SERIAL='$AWS_SERIAL'
 AWS_PROFILE='$AWS_PROFILE'
 AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY'
@@ -857,9 +857,9 @@ _sts_assume_role () {
   fi
 
   if [ -z "$EXTERNAL_ID" ]; then
-    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$SESSION_NAME")
+    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$AWS_USERNAME")
   else
-    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$SESSION_NAME" --external-id "$EXTERNAL_ID")
+    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$AWS_USERNAME" --external-id "$EXTERNAL_ID")
   fi
   if [ -z "$JSON" ]; then
     _echoerr "ERROR: Unable to obtain session"
@@ -1171,6 +1171,7 @@ _init_aws() {
     return 1
   fi
   local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
+  export AWS_USERNAME=$(echo $USER | awk -F/ '{print $2}')
   local SERIAL="${USER/:user/:mfa}"
 
   if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
