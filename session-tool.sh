@@ -1,4 +1,4 @@
-SESSION_TOOL_VERSION=1.6.3
+SESSION_TOOL_VERSION=1.6.4
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 # Bash utility to manage AWS sessions, please see usage per command or
 # https://github.com/basefarm/aws-session-tool
@@ -188,7 +188,8 @@ _vergte() {
 _prereq () {
   type curl >/dev/null 2>&1 || { [[ $- =~ i ]] && echo >&2 "ERROR: curl is not found. session_tools will not work." ; }
   case $OSTYPE in
-    darwin*	) _OPENSSL="/usr/bin/openssl";;
+    darwin* ) _OPENSSL="/usr/bin/openssl";;
+    msys* )   _OPENSSL="";;
     linux* | cygwin* ) _OPENSSL="openssl";;
     *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE" ;;
   esac
@@ -204,7 +205,9 @@ _prereq () {
       fi
   fi
 
-  type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
+  if [ "$_OPENSSL" != "" ]; then
+      type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
+  fi
   type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
   type aws >/dev/null 2>&1 || echo >&2 "ERROR: aws is not found. session_tools will not work."
   type $_PYTHON >/dev/null 2>&1 || echo >&2 "ERROR: $_PYTHON is not found. session_tools will not work."
@@ -216,27 +219,29 @@ _prereq () {
   type sort >/dev/null 2>&1 || echo >&2 "ERROR: sort is not found. session_tools will not work."
   type readlink >/dev/null 2>&1 || echo >&2 "ERROR: readlink is not found. session_tool will not work."
 
-  # Check for pbkdf2 key derivation support
-  _OPENSSL_ARGS=""
-  ossl=$($_OPENSSL version)
-  ossl_dist=$(echo $ossl | awk '{print $1}')
-  ossl_ver=$(echo $ossl | awk '{print $2}')
+  if [ "$_OPENSSL" != "" ]; then
+      # Check for pbkdf2 key derivation support
+      _OPENSSL_ARGS=""
+      ossl=$($_OPENSSL version)
+      ossl_dist=$(echo $ossl | awk '{print $1}')
+      ossl_ver=$(echo $ossl | awk '{print $2}')
 
-  if [ "$ossl_dist" = "OpenSSL" ]; then
-    # Check for OpenSSL version 1.1.1 or newer
-    if _vergte "$ossl_ver" "1.1.1"; then
-      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
-    fi
-  elif [ "$ossl_dist" = "LibreSSL" ]; then
-    # Check for LibreSSL version 2.9.1 or newer
-    if _vergte "$ossl_ver" "2.9.1"; then
-      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
-    fi
-  else
-    echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
+      if [ "$ossl_dist" = "OpenSSL" ]; then
+	  # Check for OpenSSL version 1.1.1 or newer
+	  if _vergte "$ossl_ver" "1.1.1"; then
+	      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
+	  fi
+      elif [ "$ossl_dist" = "LibreSSL" ]; then
+	  # Check for LibreSSL version 2.9.1 or newer
+	  if _vergte "$ossl_ver" "2.9.1"; then
+	      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
+	  fi
+      else
+	  echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
+      fi
   fi
 
-  export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
+  export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_USERNAME AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
   return 0
 }
 
@@ -254,7 +259,7 @@ _upgrade_check() {
     current_second=$(date +%s)
     case $OSTYPE in
       darwin*)
-        eval `stat -s -t %s $check_file`
+        eval `/usr/bin/stat -s -t %s $check_file`
         file_second=$st_mtime;;
       *)
         file_second=$(stat --format=%Y $check_file);;
@@ -270,7 +275,7 @@ _upgrade_check() {
 _string_to_sec () {
   case $OSTYPE in
     darwin*)
-      local _STD_TIME=$(echo "$1" | sed -E 's/([+|-])([0-9]{2}):([0-9]{2})$/\1\2\3/;s/Z$/+0000/')
+      local _STD_TIME=$(echo "$1" | /usr/bin/sed -E 's/([+|-])([0-9]{2}):([0-9]{2})$/\1\2\3/;s/Z$/+0000/')
       local _S=$(/bin/date -j -u -f '%Y-%m-%dT%H:%M:%S%z' $_STD_TIME +%s)
       local _LOCAL=$(/bin/date -j -r $_S);;
     *)
@@ -284,7 +289,7 @@ _string_to_sec () {
 _sec_to_local () {
   case $OSTYPE in
   darwin*)
-    _LOCAL=$(date -j -r $1);;
+    _LOCAL=$(/bin/date -j -r $1);;
   *)
     _LOCAL=$(date --date="@$1");;
   esac
@@ -366,7 +371,7 @@ get_session() {
         for f in `ls ~/.aws/*.aes`; do
           local expiry_s=$(expr $(date -r $f '+%s') + 43200 )
           case $OSTYPE in
-            darwin*	) local expiry_l=$(date -r $expiry_s '+%H:%M:%S %Y-%m-%d');;
+            darwin*	) local expiry_l=$(/bin/date -r $expiry_s '+%H:%M:%S %Y-%m-%d');;
             *	) local expiry_l=$(date -d @${expiry_s} '+%H:%M:%S %Y-%m-%d');;
           esac
           local profile=$(basename $f .aes)
@@ -391,8 +396,6 @@ get_session() {
     esac
   done
 
-
-
   if [ ! -z "${IMPORT}" ]; then
     # Import the key found in the file or the variable it self
     if [ ! -e "${IMPORT}" ]; then
@@ -402,8 +405,11 @@ get_session() {
         _echoerr "ERROR: The file '${IMPORT}' does not exist and it does not contain a valid api key-pair."
         return 1
       fi
-      # Remove "this" command from history, as it contains a clear text secret access key
-      history -d $((HISTCMD-1))
+      if [ "$PROFILE_SHELL" != "zsh" ]; then
+	  # Remove "this" command from history, as it contains a clear text secret access key
+	  # Not supported zsh
+	  history -d $((HISTCMD-1))
+      fi
     else
       _KEY_ID="$(tail -1 "${IMPORT}" | awk -F, '{print $1}')"
       _KEY_SECRET="$(tail -1 "${IMPORT}" | awk -F, '{print $2}')"
@@ -456,6 +462,7 @@ get_session() {
       return 1
     fi
     echo "get_session -p ${PROFILE} -i ${_KEY_ID},${_KEY_SECRET} -b ${BUCKET} -d"
+    return 0
   fi
   if ! ${STOREONLY} ; then
     shift $((OPTIND-1))
@@ -564,6 +571,10 @@ get_session() {
         _echoerr "ERROR: You can not both store and restore state in the same run."
         return 1
       fi
+      if [ "$_OPENSSL" = "" ]; then
+	  _echoerr "ERROR: Store/restore not supported on GIT bash for Windows"
+	  return 1
+      fi
       if [ $# -gt 0 ]; then
         _echoerr "ERROR: You can only combine restore with the profile option."
         return 1
@@ -665,11 +676,16 @@ get_session() {
 
   # Store if requested
   if $STORE ; then
+    if [ "$_OPENSSL" = "" ]; then
+	_echoerr "ERROR: Store/restore not supported on GIT bash for Windows"
+	return 1
+    fi
     touch ~/.aws/${AWS_PROFILE}.aes
     chmod 600 ~/.aws/${AWS_PROFILE}.aes
       if [ "$PROFILE_SHELL" = "bash" ]; then
 	  $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
+AWS_USERNAME='$AWS_USERNAME'
 AWS_SERIAL='$AWS_SERIAL'
 AWS_PROFILE='$AWS_PROFILE'
 AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY'
@@ -682,6 +698,7 @@ EOF
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
 	  $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
+AWS_USERNAME='$AWS_USERNAME'
 AWS_SERIAL='$AWS_SERIAL'
 AWS_PROFILE='$AWS_PROFILE'
 AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY'
@@ -797,16 +814,16 @@ _list_roles () {
   local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
   if _check_exists_profile ; then
     if _check_exists_rolefiles ; then
-      find ~/.aws -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
+      find ~/.aws/ -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
     else
       return 1
     fi
   else
-    if [ ! -z "$(find ~/.aws -iname \*_roles.cfg)" ] ; then
+    if [ ! -z "$(find ~/.aws/ -iname \*_roles.cfg)" ] ; then
       echo "# INFO: No AWS_PROFILE specified (can be set by get_session, or a default profile"
       echo "        can be defined with aws configure set default.session_tool_default_profile)"
       echo "#       but some profiles were located, so showing all roles defined:"
-      (find ~/.aws -iname \*_session-tool_roles.cfg ; find ~/.aws -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
+      (find ~/.aws/ -iname \*_session-tool_roles.cfg ; find ~/.aws/ -iname \*_roles.cfg -not -iname \*_session-tool_roles.cfg) | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'
     else
       _echoerr "ERROR: Unable to determine profile. Either specify AWS_PROFILE, do a get_session, or set a default profile with aws configure set default.session_tool_default_profile"
       return 1
@@ -850,9 +867,9 @@ _sts_assume_role () {
   fi
 
   if [ -z "$EXTERNAL_ID" ]; then
-    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$SESSION_NAME")
+    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$AWS_USERNAME")
   else
-    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$SESSION_NAME" --external-id "$EXTERNAL_ID")
+    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$AWS_USERNAME" --external-id "$EXTERNAL_ID")
   fi
   if [ -z "$JSON" ]; then
     _echoerr "ERROR: Unable to obtain session"
@@ -1096,7 +1113,7 @@ _git_check () {
 
 _terraform_git_check () {
   if ! command -v terraform >/dev/null; then 
-    _echoerr "Terraform is not installed"
+    # Not an error, just do not add the terraform hook
     return 1
   fi
 
@@ -1164,6 +1181,7 @@ _init_aws() {
     return 1
   fi
   local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
+  export AWS_USERNAME=$(echo $USER | awk -F/ '{print $2}')
   local SERIAL="${USER/:user/:mfa}"
 
   if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
@@ -1227,7 +1245,7 @@ _bashcompletion_rolehandling ()  {
 
   local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
 
-  roles=`find ~/.aws -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'`
+  roles=`find ~/.aws/ -iname ${PROFILE}_roles.cfg -or -iname ${PROFILE}_session-tool_roles.cfg 2>/dev/null | xargs cat | egrep -hv -e "^#" -e "^$" | sort -u | awk '{print $1}'`
 
   COMPREPLY=( $(compgen -W "$roles" -- $cur ) )
   return 0
@@ -1240,6 +1258,10 @@ function _gen_awspw() {
   local spcchar='@#$%^*()_+-=[]{}'
 
   until (( pwok )) ; do
+    if [ "$_OPENSSL" = "" ]; then
+	_echoerr "ERROR: _gen_awspw not supported on GIT bash for Windows"
+	return 1
+    fi
     local pw="$($_OPENSSL rand -base64 $((${mylen}+2)) )"
     local pwsub="$($_OPENSSL rand -hex 1)"
     local pwplace="$($_OPENSSL rand -hex 1)"
@@ -1314,7 +1336,7 @@ function rotate_credentials() {
   fi
   if test `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
     if ! (( TWOKEYS )) ; then
-      _echoerr "WARNING: This user already has two sets of access keys. If you wish to rotate both sets, please use the -t flag - but be aware, that the second set of keys will be displayed here on the screen. More information in the wiki."
+      _echoerr "ERROR: You already have two sets of access keys. If you wish to rotate both sets, please use the -t flag."
       return 1
     else
       for k in `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text` ; do
