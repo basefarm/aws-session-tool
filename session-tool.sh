@@ -387,9 +387,9 @@ get_session() {
         return 1
       fi
       if [ "$PROFILE_SHELL" != "zsh" ]; then
-	  # Remove "this" command from history, as it contains a clear text secret access key
-	  # Not supported zsh
-	  history -d $((HISTCMD-1))
+        # Remove "this" command from history, as it contains a clear text secret access key
+        # Not supported zsh
+        history -d $((HISTCMD-1))
       fi
     else
       _KEY_ID="$(tail -1 "${IMPORT}" | awk -F, '{print $1}')"
@@ -402,9 +402,9 @@ get_session() {
     if [ -z "${PROFILE}" ]; then
       # As this is import, possibly for the first time, let's assume the user wants the awsops profile
       PROFILE=${DEFAULT_PROFILE}
-      fi
-      if [ -z "${BUCKET}" ]; then
-        BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
+    fi
+    if [ -z "${BUCKET}" ]; then
+      BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
       if [ -z "${BUCKET}" ]; then
         _echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
         return 1
@@ -473,12 +473,12 @@ get_session() {
       if ${UPLOAD} ; then
         _echoerr "ERROR: uploading and downloading are mutually exclusive..."
         return 1
+      fi
+      local ROLEBUCKET
+      if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
+        _echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
+        return 1
       else
-        local ROLEBUCKET
-        if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
-          _echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
-          return 1
-        fi
         local ROLESFILE
         if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
           if ! aws s3 ls "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
