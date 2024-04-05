@@ -411,13 +411,19 @@ get_session() {
       fi
     fi
 
+    # Assuming the user want to use this profile right away (like supplying -d in addtion to -i)
+    # Need to clear existing credentials from the shell, to not confuse the process
     unset AWS_PROFILE
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SESSION_TOKEN
+    unset AWS_SECRET_ACCESS_KEY
     aws configure --profile "${PROFILE}" set aws_access_key_id "${_KEY_ID}"
     aws configure --profile "${PROFILE}" set aws_secret_access_key "${_KEY_SECRET}"
     # TODO: This will set the default profile for session tool. If using a multiple profiles
     # the user might not want to change his default profile...
     aws configure set default.session_tool_default_profile "${PROFILE}"
     aws configure set session-tool_bucketname "${BUCKET}" --profile "${PROFILE}"
+    export AWS_PROFILE="${PROFILE}"
   fi
   if ${EXPORT} ; then
     if test -z "${PROFILE}" ; then
