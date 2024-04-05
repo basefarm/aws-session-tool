@@ -333,26 +333,6 @@ _age_check () {
   return 0
 }
 
-# Check for existence of certain file in session tool S3 bucket.
-# If present, show contents to user.
-_motd_check() {
-  if [ "$AWS_PROFILE" != "" ]; then
-    local ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})"
-    if [ "$ROLEBUCKET" != "" ]; then
-      local MOTDFILE="$(aws configure get session-tool_motdfile --profile ${AWS_PROFILE})"
-      MOTDFILE="${MOTDFILE:-session-tool_motd.txt}"
-      local LOCALFILE="${HOME}/.aws/${AWS_PROFILE}_${MOTDFILE}"
-      if out="$(aws s3 cp "s3://${ROLEBUCKET}/${MOTDFILE}" "$LOCALFILE" 2>&1)" ; then
-        cat "$LOCALFILE"
-      else
-        rm -f "$LOCALFILE" 2>&1 > /dev/null
-      fi
-    fi
-  fi
-  return 0
-}
-
-
 # Command for creating a session
 get_session() {
   #TODO: Create function and add to get_session to disable git check.
@@ -629,7 +609,6 @@ get_session() {
       _init_aws
     fi
 
-    _motd_check
     _age_check
 
     _pushp TEMP_AWS_PARAMETERS
