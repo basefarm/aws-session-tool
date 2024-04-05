@@ -321,9 +321,6 @@ _age_check () {
   local ALLOWED_AGE_LOCAL=$(_sec_to_local $ALLOWED_AGE_SEC)
   local AGE=$( expr $NOW - $WARN_AGE )
 
-  local MAX_AGE=$( expr $SEC + $WARN_AGE )
-  local MAX_AGE_LOCAL=$(_sec_to_local $MAX_AGE)
-
   RED=$(tput setaf 1)
   NC=$(tput sgr0)
   if [ "$SEC" -lt "$AGE" ]; then
