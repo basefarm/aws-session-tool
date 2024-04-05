@@ -305,6 +305,10 @@ _age_check () {
     return 1
   fi
   local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE --output json | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
+  if [ $? -ne 0 ]; then
+    echo "WARNING: Unable to check access key age."
+    return 2
+  fi
   local TS=$(_string_to_sec $CREATED)
 
   local SEC=$(echo $TS | awk -F, '{print $1}')
