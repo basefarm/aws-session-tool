@@ -305,6 +305,10 @@ _age_check () {
     return 1
   fi
   local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE --output json | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
+  if [ $? -ne 0 ]; then
+    echo "WARNING: Unable to check access key age."
+    return 2
+  fi
   local TS=$(_string_to_sec $CREATED)
 
   local SEC=$(echo $TS | awk -F, '{print $1}')
@@ -317,9 +321,6 @@ _age_check () {
   local ALLOWED_AGE_LOCAL=$(_sec_to_local $ALLOWED_AGE_SEC)
   local AGE=$( expr $NOW - $WARN_AGE )
 
-  local MAX_AGE=$( expr $SEC + $WARN_AGE )
-  local MAX_AGE_LOCAL=$(_sec_to_local $MAX_AGE)
-
   RED=$(tput setaf 1)
   NC=$(tput sgr0)
   if [ "$SEC" -lt "$AGE" ]; then
@@ -331,26 +332,6 @@ _age_check () {
   fi
   return 0
 }
-
-# Check for existence of certain file in session tool S3 bucket.
-# If present, show contents to user.
-_motd_check() {
-  if [ "$AWS_PROFILE" != "" ]; then
-    local ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})"
-    if [ "$ROLEBUCKET" != "" ]; then
-      local MOTDFILE="$(aws configure get session-tool_motdfile --profile ${AWS_PROFILE})"
-      MOTDFILE="${MOTDFILE:-session-tool_motd.txt}"
-      local LOCALFILE="${HOME}/.aws/${AWS_PROFILE}_${MOTDFILE}"
-      if out="$(aws s3 cp "s3://${ROLEBUCKET}/${MOTDFILE}" "$LOCALFILE" 2>&1)" ; then
-        cat "$LOCALFILE"
-      else
-        rm -f "$LOCALFILE" 2>&1 > /dev/null
-      fi
-    fi
-  fi
-  return 0
-}
-
 
 # Command for creating a session
 get_session() {
@@ -406,9 +387,9 @@ get_session() {
         return 1
       fi
       if [ "$PROFILE_SHELL" != "zsh" ]; then
-	  # Remove "this" command from history, as it contains a clear text secret access key
-	  # Not supported zsh
-	  history -d $((HISTCMD-1))
+        # Remove "this" command from history, as it contains a clear text secret access key
+        # Not supported zsh
+        history -d $((HISTCMD-1))
       fi
     else
       _KEY_ID="$(tail -1 "${IMPORT}" | awk -F, '{print $1}')"
@@ -421,22 +402,28 @@ get_session() {
     if [ -z "${PROFILE}" ]; then
       # As this is import, possibly for the first time, let's assume the user wants the awsops profile
       PROFILE=${DEFAULT_PROFILE}
-      fi
-      if [ -z "${BUCKET}" ]; then
-        BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
+    fi
+    if [ -z "${BUCKET}" ]; then
+      BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
       if [ -z "${BUCKET}" ]; then
         _echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
         return 1
       fi
     fi
 
+    # Assuming the user want to use this profile right away (like supplying -d in addtion to -i)
+    # Need to clear existing credentials from the shell, to not confuse the process
     unset AWS_PROFILE
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SESSION_TOKEN
+    unset AWS_SECRET_ACCESS_KEY
     aws configure --profile "${PROFILE}" set aws_access_key_id "${_KEY_ID}"
     aws configure --profile "${PROFILE}" set aws_secret_access_key "${_KEY_SECRET}"
     # TODO: This will set the default profile for session tool. If using a multiple profiles
     # the user might not want to change his default profile...
     aws configure set default.session_tool_default_profile "${PROFILE}"
     aws configure set session-tool_bucketname "${BUCKET}" --profile "${PROFILE}"
+    export AWS_PROFILE="${PROFILE}"
   fi
   if ${EXPORT} ; then
     if test -z "${PROFILE}" ; then
@@ -486,33 +473,32 @@ get_session() {
       if ${UPLOAD} ; then
         _echoerr "ERROR: uploading and downloading are mutually exclusive..."
         return 1
-      else
-        local ROLEBUCKET
-        if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
-          _echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
-          return 1
-        fi
-        local ROLESFILE
-        if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
-          if ! aws s3 ls "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
-            _echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
-            return 1
-          else
-            ROLESFILE="session-tool_roles.cfg"
-          fi
-        fi
-        if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
-          _echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
-          return 1
-        fi
-        if ! out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1)" ; then
-          _echoerr "ERROR: ${out}"
-          _echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+      fi
+      local ROLEBUCKET
+      if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
+        _echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
+        return 1
+      fi
+      local ROLESFILE
+      if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
+        if ! aws s3 ls "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
+          _echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
           return 1
         else
-          echo "# Roles downloaded"
-          return 0
+          ROLESFILE="session-tool_roles.cfg"
         fi
+      fi
+      if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
+        _echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
+        return 1
+      fi
+      if ! out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1)" ; then
+        _echoerr "ERROR: ${out}"
+        _echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+        return 1
+      else
+        echo "# Roles downloaded"
+        return 0
       fi
     fi
 
@@ -628,7 +614,6 @@ get_session() {
       _init_aws
     fi
 
-    _motd_check
     _age_check
 
     _pushp TEMP_AWS_PARAMETERS
