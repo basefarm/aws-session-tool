@@ -478,28 +478,27 @@ get_session() {
       if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
         _echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
         return 1
-      else
-        local ROLESFILE
-        if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
-          if ! aws s3 ls "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
-            _echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
-            return 1
-          else
-            ROLESFILE="session-tool_roles.cfg"
-          fi
-        fi
-        if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
-          _echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
-          return 1
-        fi
-        if ! out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1)" ; then
-          _echoerr "ERROR: ${out}"
-          _echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+      fi
+      local ROLESFILE
+      if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
+        if ! aws s3 ls "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
+          _echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
           return 1
         else
-          echo "# Roles downloaded"
-          return 0
+          ROLESFILE="session-tool_roles.cfg"
         fi
+      fi
+      if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
+        _echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
+        return 1
+      fi
+      if ! out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1)" ; then
+        _echoerr "ERROR: ${out}"
+        _echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+        return 1
+      else
+        echo "# Roles downloaded"
+        return 0
       fi
     fi
 
