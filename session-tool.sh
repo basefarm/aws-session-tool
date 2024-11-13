@@ -622,6 +622,7 @@ get_session() {
       local CREDS=$(echo "$CREDENTIALS" | sed 's/^/export /')
       eval "$CREDS"
       _pushp STORED_AWS_PARAMETERS
+      unset AWS_ROLE_ALIAS
       return 0
     fi
 
@@ -790,6 +791,7 @@ get_console_url () {
     else
       echo "$CONSOLE_URI"
     fi
+    unset AWS_ROLE_ALIAS
     _popp TEMP_AWS_PARAMETERS
   else
     return 1
