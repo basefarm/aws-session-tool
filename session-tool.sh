@@ -572,6 +572,23 @@ get_session() {
         return 1
       fi
 
+      if [ ! -z "$STORED_AWS_PARAMETER_AWS_ACCESS_KEY_ID" ]; then
+	  # Check if we can just resore the environment variables, instead of reading from file
+	  if [ "$AWS_PROFILE" = "$STORED_AWS_PARAMETER_AWS_PROFILE" ]; then
+	      if [ ! -z "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
+		  # Check the expiration date
+		  _NOW=$(date +%s)
+		  # Lets assume the user want a session that last at least 10 minutes
+		  ALLOWED_AGE=$(expr $_NOW + 600)
+		  if [ "$ALLOWED_AGE" -lt "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
+		      _popp STORED_AWS_PARAMETERS
+		      unset AWS_ROLE_ALIAS
+		      return 0
+		  fi
+	      fi
+	  fi
+      fi
+
       if [ "$PROFILE_SHELL" = "bash" ]; then
 	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
