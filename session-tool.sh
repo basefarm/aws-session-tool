@@ -339,6 +339,7 @@ get_session() {
   local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
   local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false
   local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
+  local PREVIOUS_AWS_PROFILE="$AWS_PROFILE"
   # Ugly hack to support people who want to store their sessions retroactively
   if test "$*" = "-s" ; then STOREONLY=true ; fi
 
@@ -588,9 +589,10 @@ get_session() {
       _aws_reset_vars
       eval "$CREDENTIALS"
       if ! _session_ok; then
-        _aws_reset_vars
-        _popp TEMP_AWS_PARAMETERS
-        return 1
+          _aws_reset_vars
+          _popp TEMP_AWS_PARAMETERS
+	  AWS_PROFILE="$PREVIOUS_AWS_PROFILE"
+          return 1
       fi
 
       local NOW=$(date +%s)
