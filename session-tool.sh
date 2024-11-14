@@ -23,7 +23,7 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 if test -n "$ZSH_VERSION"; then
   PROFILE_SHELL=zsh
   export AWS_SESSION_TOOL=$0:A
-  # Pushx the current parameters into an array
+  # Push the current parameters into an array
   _pushp () {
     local i j k
     for i in ${(z)AWS_PARAMETERS} ; do
