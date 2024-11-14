@@ -94,6 +94,59 @@ if test -n "$ZSH_VERSION"; then
     return 0
   }
 
+  # Load the possibility to use the EPOCHSECONDS variable instead of forking `date` for every prompt
+  zmodload -F zsh/datetime p:EPOCHSECONDS
+  _color() {
+      local color=""
+      if [ "$1" -gt "$EPOCHSECONDS" ]; then
+          color="%F{green}"
+      else
+          color="%F{red}"
+      fi
+      print "$color"
+  }
+
+  _not_expired() {
+      if [ "$1" -gt "$EPOCHSECONDS" ]; then
+          return 0  # Not expired
+      else
+          return 1  # Expired
+      fi
+  }
+
+  session_tool_prompt() {
+      local prompt=""
+      if [ ! -z "$AWS_PROFILE" ]; then
+          main_color=$(_color "$AWS_EXPIRATION_S")
+          if [ -z "$AWS_ROLE_ALIAS" ]; then
+              prompt="(${main_color}${AWS_PROFILE}%f)"
+          else
+              stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
+              prompt="(${stored_color}${AWS_PROFILE}%f[${main_color}${AWS_ROLE_ALIAS}%f])"
+          fi
+      fi
+      print "$prompt"
+  }
+
+  session_tool_title() {
+      local title=''
+      if [ ! -z "$AWS_PROFILE" ]; then
+          if [ -z "$AWS_ROLE_ALIAS" ]; then
+              if _not_expired "$AWS_EXPIRATION_S"; then
+                  title="${AWS_PROFILE}"
+              fi
+          else
+              if _not_expired "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S"; then
+                  title="${AWS_PROFILE}"
+              fi
+              if _not_expired "$AWS_EXPIRATION_S"; then
+                  title="${title}[${AWS_ROLE_ALIAS}]"
+              fi
+          fi
+      fi
+      print "$title"
+  }
+  
 elif test -n "$BASH_VERSION"; then
   PROFILE_SHELL=bash
   export AWS_SESSION_TOOL="$BASH_SOURCE"
