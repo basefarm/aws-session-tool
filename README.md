@@ -365,6 +365,41 @@ $ assume_role <role I do not have access to>
 An error occurred (AccessDenied) when calling the AssumeRole operation: Not authorized to perform sts:AssumeRole
 ERROR: Unable to obtain session
 ```  
+
+# Shell prompt and window title
+
+Session tool can maintain information about its status in the shell prompt or in the window title.
+
+Example for zsh, add this to your `.zshrc` file or similar:
+```sh
+# Default macos zsh prompt:
+# PROMPT="%n@%m %1~ %#"
+precmd() {
+    PROMPT="%1~ $(session_tool_prompt)%# "   # Shell prompt
+    echo -ne "\e]1;$(session_tool_title)\a"  # Window title
+}
+```
+
+Remove/comment out lines you do not want.
+
+Example for bash, add this to your `.bashrc` file or similar::
+```sh
+# Default macos bash prompt
+# export PS1='\s-\v\$'
+function prompt_command {
+    session_prompt=$(session_tool_prompt)
+    if [ "$session_prompt" != "" ]; then
+	session_prompt=" $session_prompt"
+    fi
+    export PS1="\s-\v${session_prompt} \$ "      # Shell prompt
+    echo -ne "\033]0;$(session_tool_title)\007"  # Window title
+}
+
+export PROMPT_COMMAND="prompt_command"
+```
+
+Remove/comment out lines you do	not want.
+
 # Known issues  
 
 * If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
