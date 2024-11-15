@@ -221,6 +221,59 @@ elif test -n "$BASH_VERSION"; then
     return 0
   }
 
+  _color() {
+      local color=""
+      now=$(date +%s)
+      if [ "$1" -gt "$now" ]; then
+          color="\e[0;32m"
+      else
+          color="\e[0;31m"
+      fi
+      echo "$color"
+  }
+
+  _not_expired() {
+      now=$(date +%s)
+      if [ "$1" -gt "$now" ]; then
+          return 0  # Not expired
+      else
+          return 1  # Expired
+      fi
+  }
+
+  session_tool_prompt() {
+      local prompt=""
+      if [ ! -z "$AWS_PROFILE" ]; then
+          main_color=$(_color "$AWS_EXPIRATION_S")
+          if [ -z "$AWS_ROLE_ALIAS" ]; then
+              prompt="(${main_color}${AWS_PROFILE}\e[m)"
+          else
+              stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
+              prompt="(${stored_color}${AWS_PROFILE}\e[m[${main_color}${AWS_ROLE_ALIAS}\e[m])"
+          fi
+      fi
+      echo "$prompt"
+  }
+
+  session_tool_title() {
+      local title=''
+      if [ ! -z "$AWS_PROFILE" ]; then
+          if [ -z "$AWS_ROLE_ALIAS" ]; then
+              if _not_expired "$AWS_EXPIRATION_S"; then
+                  title="${AWS_PROFILE}"
+              fi
+          else
+              if _not_expired "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S"; then
+                  title="${AWS_PROFILE}"
+              fi
+              if _not_expired "$AWS_EXPIRATION_S"; then
+                  title="${title}[${AWS_ROLE_ALIAS}]"
+              fi
+          fi
+      fi
+      echo "$title"
+  }
+
 else
   echo >&2 "ERROR: Shell is not bash/zsh, probably csh or tcsh. session_tools will not work."
   return -1
