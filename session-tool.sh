@@ -224,7 +224,8 @@ elif test -n "$BASH_VERSION"; then
   _color() {
       local color=""
       now=$(date +%s)
-      if [ "$1" -gt "$now" ]; then
+      local cmp_s="${1:-0}"
+      if [ "$cmp_s" -gt "$now" ]; then
           color="\e[0;32m"
       else
           color="\e[0;31m"
@@ -234,7 +235,8 @@ elif test -n "$BASH_VERSION"; then
 
   _not_expired() {
       now=$(date +%s)
-      if [ "$1" -gt "$now" ]; then
+      local cmp_s="${1:-0}"
+      if [ "$cmp_s" -gt "$now" ]; then
           return 0  # Not expired
       else
           return 1  # Expired
