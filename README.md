@@ -384,14 +384,19 @@ Remove/comment out lines you do not want.
 
 Example for bash, add this to your `.bashrc` file or similar::
 ```sh
-# Default macos bash prompt
+# Default macos bash prompt:
 # export PS1='\s-\v\$'
+# Default Linux shell prompt:
+# export PS1='[\u@\h \W]\$ '
 function prompt_command {
     session_prompt=$(session_tool_prompt)
     if [ "$session_prompt" != "" ]; then
 	session_prompt=" $session_prompt"
     fi
-    export PS1="\s-\v${session_prompt} \$ "      # Shell prompt
+    # Keep only one of the two following lines:
+    export PS1="\s-\v${session_prompt} \$ "      # Shell prompt mac
+    export PS1="[\u@\h${session_prompt} \W]\$ "  # Shell prompt linux
+    # Keep only if you want a window title with session status:
     echo -ne "\033]0;$(session_tool_title)\007"  # Window title
 }
 
