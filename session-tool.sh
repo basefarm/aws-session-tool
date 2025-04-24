@@ -106,6 +106,10 @@ if test -n "$ZSH_VERSION"; then
       print "$color"
   }
 
+  _reset_color() {
+      print "%f"
+  }
+  
   _not_expired() {
       if [ "$1" -gt "$EPOCHSECONDS" ]; then
           return 0  # Not expired
@@ -116,13 +120,14 @@ if test -n "$ZSH_VERSION"; then
 
   session_tool_prompt() {
       local prompt=""
+      local reset_color=$(_reset_color)
       if [ ! -z "$AWS_PROFILE" ]; then
           main_color=$(_color "$AWS_EXPIRATION_S")
           if [ -z "$AWS_ROLE_ALIAS" ]; then
-              prompt="(${main_color}${AWS_PROFILE}%f)"
+              prompt="(${main_color}${AWS_PROFILE}${reset_color})"
           else
               stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
-              prompt="(${stored_color}${AWS_PROFILE}%f[${main_color}${AWS_ROLE_ALIAS}%f])"
+              prompt="(${stored_color}${AWS_PROFILE}${reset_color}[${main_color}${AWS_ROLE_ALIAS}${reset_color}])"
           fi
       fi
       print "$prompt"
@@ -221,14 +226,18 @@ elif test -n "$BASH_VERSION"; then
     return 0
   }
 
+  # \[...\] around the color escape codes makes sure bash does not include them in line lenght calculations
+  _fgReset=$(tput sgr0); _fgReset="\[${_fgReset}\]"
+  _fgRed=$(tput setaf 1); _fgRed="\[${_fgRed}\]"
+  _fgGreen=$(tput setaf 2); _fgGreen="\[${_fgGreen}\]"
   _color() {
       local color=""
       now=$(date +%s)
       local cmp_s="${1:-0}"
       if [ "$cmp_s" -gt "$now" ]; then
-          color="\e[0;32m"
+	  color=$_fgGreen
       else
-          color="\e[0;31m"
+	  color=$_fgRed
       fi
       echo "$color"
   }
@@ -248,10 +257,10 @@ elif test -n "$BASH_VERSION"; then
       if [ ! -z "$AWS_PROFILE" ]; then
           main_color=$(_color "$AWS_EXPIRATION_S")
           if [ -z "$AWS_ROLE_ALIAS" ]; then
-              prompt="(${main_color}${AWS_PROFILE}\e[m)"
+              prompt="(${main_color}${AWS_PROFILE}${_fgReset})"
           else
               stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
-              prompt="(${stored_color}${AWS_PROFILE}\e[m[${main_color}${AWS_ROLE_ALIAS}\e[m])"
+              prompt="(${stored_color}${AWS_PROFILE}${_fgReset}[${main_color}${AWS_ROLE_ALIAS}${_fgReset}])"
           fi
       fi
       echo "$prompt"
