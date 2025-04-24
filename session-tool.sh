@@ -878,6 +878,8 @@ get_console_url () {
   shift $((OPTIND-1))
   if ! _check_exists_rolefiles ; then return 1 ; fi
 
+  _OLD_AWS_ROLE_ALIAS=$AWS_ROLE_ALIAS
+  
   if _sts_assume_role $* ; then
     local SESSION="{\"sessionId\":\"${AWS_ACCESS_KEY_ID}\",\"sessionKey\":\"${AWS_SECRET_ACCESS_KEY}\",\"sessionToken\":\"${AWS_SESSION_TOKEN}\"}"
     local ENCODED_SESSION=$(_rawurlencode ${SESSION})
@@ -908,8 +910,8 @@ get_console_url () {
     else
       echo "$CONSOLE_URI"
     fi
-    unset AWS_ROLE_ALIAS
     _popp TEMP_AWS_PARAMETERS
+    AWS_ROLE_ALIAS=$_OLD_AWS_ROLE_ALIAS
   else
     return 1
   fi
