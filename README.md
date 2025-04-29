@@ -370,6 +370,8 @@ ERROR: Unable to obtain session
 
 Session tool can maintain information about its status in the shell prompt or in the window title.
 
+## Zsh
+
 Example for zsh, add this to your `.zshrc` file or similar:
 ```sh
 # Default macos zsh prompt:
@@ -381,6 +383,28 @@ precmd() {
 ```
 
 Remove/comment out lines you do not want.
+
+## Zsh with Oh My ZSH
+
+If you are using [Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh) you can use the AWS plugin and
+get information about region, active profile and assumed role in your prompt. The following will make
+sure the assumed role alias is part of the prompt:
+
+```
+precmd() {
+    ZSH_THEME_AWS_PROFILE_SUFFIX="${AWS_ROLE_ALIAS:+/}${AWS_ROLE_ALIAS}>"
+}
+```
+
+To enable Oh My Zsh and the aws plugin, add something similar to this to your `.zshrc` file:
+```
+export ZSH="$HOME/.oh-my-zsh"
+plugins=(aws)
+```
+
+This will not show information about active or expired state of the credentials.
+
+## Bash
 
 Example for bash, add this to your `.bashrc` file or similar::
 ```sh
