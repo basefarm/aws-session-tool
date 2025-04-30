@@ -365,6 +365,70 @@ $ assume_role <role I do not have access to>
 An error occurred (AccessDenied) when calling the AssumeRole operation: Not authorized to perform sts:AssumeRole
 ERROR: Unable to obtain session
 ```  
+
+# Shell prompt and window title
+
+Session tool can maintain information about its status in the shell prompt or in the window title.
+
+## Zsh
+
+Example for zsh, add this to your `.zshrc` file or similar:
+```sh
+# Default macos zsh prompt:
+# PROMPT="%n@%m %1~ %#"
+precmd() {
+    PROMPT="%1~ $(session_tool_prompt)%# "   # Shell prompt
+    echo -ne "\e]1;$(session_tool_title)\a"  # Window title
+}
+```
+
+Remove/comment out lines you do not want.
+
+## Zsh with Oh My ZSH
+
+If you are using [Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh) you can use the AWS plugin and
+get information about region, active profile and assumed role in your prompt. The following will make
+sure the assumed role alias is part of the prompt:
+
+```
+precmd() {
+    ZSH_THEME_AWS_PROFILE_SUFFIX="${AWS_ROLE_ALIAS:+/}${AWS_ROLE_ALIAS}>"
+}
+```
+
+To enable Oh My Zsh and the aws plugin, add something similar to this to your `.zshrc` file:
+```
+export ZSH="$HOME/.oh-my-zsh"
+plugins=(aws)
+```
+
+This will not show information about active or expired state of the credentials.
+
+## Bash
+
+Example for bash, add this to your `.bashrc` file or similar::
+```sh
+# Default macos bash prompt:
+# export PS1='\s-\v\$'
+# Default Linux shell prompt:
+# export PS1='[\u@\h \W]\$ '
+function prompt_command {
+    session_prompt=$(session_tool_prompt)
+    if [ "$session_prompt" != "" ]; then
+	session_prompt=" $session_prompt"
+    fi
+    # Keep only one of the two following lines:
+    export PS1="\s-\v${session_prompt} \$ "      # Shell prompt mac
+    export PS1="[\u@\h${session_prompt} \W]\$ "  # Shell prompt linux
+    # Keep only if you want a window title with session status:
+    echo -ne "\033]0;$(session_tool_title)\007"  # Window title
+}
+
+export PROMPT_COMMAND="prompt_command"
+```
+
+Remove/comment out lines you do	not want.
+
 # Known issues  
 
 * If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.

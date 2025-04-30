@@ -1,4 +1,4 @@
-SESSION_TOOL_VERSION=1.6.5
+SESSION_TOOL_VERSION=1.6.6
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 # Bash utility to manage AWS sessions, please see usage per command or
 # https://github.com/basefarm/aws-session-tool
@@ -23,7 +23,7 @@ PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/sessi
 if test -n "$ZSH_VERSION"; then
   PROFILE_SHELL=zsh
   export AWS_SESSION_TOOL=$0:A
-  # Pushx the current parameters into an array
+  # Push the current parameters into an array
   _pushp () {
     local i j k
     for i in ${(z)AWS_PARAMETERS} ; do
@@ -94,6 +94,64 @@ if test -n "$ZSH_VERSION"; then
     return 0
   }
 
+  # Load the possibility to use the EPOCHSECONDS variable instead of forking `date` for every prompt
+  zmodload -F zsh/datetime p:EPOCHSECONDS
+  _color() {
+      local color=""
+      if [ "$1" -gt "$EPOCHSECONDS" ]; then
+          color="%F{green}"
+      else
+          color="%F{red}"
+      fi
+      print "$color"
+  }
+
+  _reset_color() {
+      print "%f"
+  }
+  
+  _not_expired() {
+      if [ "$1" -gt "$EPOCHSECONDS" ]; then
+          return 0  # Not expired
+      else
+          return 1  # Expired
+      fi
+  }
+
+  session_tool_prompt() {
+      local prompt=""
+      local reset_color=$(_reset_color)
+      if [ ! -z "$AWS_PROFILE" ]; then
+          main_color=$(_color "$AWS_EXPIRATION_S")
+          if [ -z "$AWS_ROLE_ALIAS" ]; then
+              prompt="(${main_color}${AWS_PROFILE}${reset_color})"
+          else
+              stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
+              prompt="(${stored_color}${AWS_PROFILE}${reset_color}[${main_color}${AWS_ROLE_ALIAS}${reset_color}])"
+          fi
+      fi
+      print "$prompt"
+  }
+
+  session_tool_title() {
+      local title=''
+      if [ ! -z "$AWS_PROFILE" ]; then
+          if [ -z "$AWS_ROLE_ALIAS" ]; then
+              if _not_expired "$AWS_EXPIRATION_S"; then
+                  title="${AWS_PROFILE}"
+              fi
+          else
+              if _not_expired "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S"; then
+                  title="${AWS_PROFILE}"
+              fi
+              if _not_expired "$AWS_EXPIRATION_S"; then
+                  title="${title}[${AWS_ROLE_ALIAS}]"
+              fi
+          fi
+      fi
+      print "$title"
+  }
+  
 elif test -n "$BASH_VERSION"; then
   PROFILE_SHELL=bash
   export AWS_SESSION_TOOL="$BASH_SOURCE"
@@ -166,6 +224,65 @@ elif test -n "$BASH_VERSION"; then
       esac
     done
     return 0
+  }
+
+  # \[...\] around the color escape codes makes sure bash does not include them in line lenght calculations
+  _fgReset=$(tput sgr0); _fgReset="\[${_fgReset}\]"
+  _fgRed=$(tput setaf 1); _fgRed="\[${_fgRed}\]"
+  _fgGreen=$(tput setaf 2); _fgGreen="\[${_fgGreen}\]"
+  _color() {
+      local color=""
+      now=$(date +%s)
+      local cmp_s="${1:-0}"
+      if [ "$cmp_s" -gt "$now" ]; then
+	  color=$_fgGreen
+      else
+	  color=$_fgRed
+      fi
+      echo "$color"
+  }
+
+  _not_expired() {
+      now=$(date +%s)
+      local cmp_s="${1:-0}"
+      if [ "$cmp_s" -gt "$now" ]; then
+          return 0  # Not expired
+      else
+          return 1  # Expired
+      fi
+  }
+
+  session_tool_prompt() {
+      local prompt=""
+      if [ ! -z "$AWS_PROFILE" ]; then
+          main_color=$(_color "$AWS_EXPIRATION_S")
+          if [ -z "$AWS_ROLE_ALIAS" ]; then
+              prompt="(${main_color}${AWS_PROFILE}${_fgReset})"
+          else
+              stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
+              prompt="(${stored_color}${AWS_PROFILE}${_fgReset}[${main_color}${AWS_ROLE_ALIAS}${_fgReset}])"
+          fi
+      fi
+      echo "$prompt"
+  }
+
+  session_tool_title() {
+      local title=''
+      if [ ! -z "$AWS_PROFILE" ]; then
+          if [ -z "$AWS_ROLE_ALIAS" ]; then
+              if _not_expired "$AWS_EXPIRATION_S"; then
+                  title="${AWS_PROFILE}"
+              fi
+          else
+              if _not_expired "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S"; then
+                  title="${AWS_PROFILE}"
+              fi
+              if _not_expired "$AWS_EXPIRATION_S"; then
+                  title="${title}[${AWS_ROLE_ALIAS}]"
+              fi
+          fi
+      fi
+      echo "$title"
   }
 
 else
@@ -241,7 +358,7 @@ _prereq () {
       fi
   fi
 
-  export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_USERNAME AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S AWS_ROLE_ALIAS"
+  export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_USERNAME AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S"
   return 0
 }
 
@@ -339,6 +456,7 @@ get_session() {
   local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
   local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false
   local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
+  local PREVIOUS_AWS_PROFILE="$AWS_PROFILE"
   # Ugly hack to support people who want to store their sessions retroactively
   if test "$*" = "-s" ; then STOREONLY=true ; fi
 
@@ -571,6 +689,23 @@ get_session() {
         return 1
       fi
 
+      if [ ! -z "$STORED_AWS_PARAMETER_AWS_ACCESS_KEY_ID" ]; then
+	  # Check if we can just resore the environment variables, instead of reading from file
+	  if [ "$AWS_PROFILE" = "$STORED_AWS_PARAMETER_AWS_PROFILE" ]; then
+	      if [ ! -z "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
+		  # Check the expiration date
+		  _NOW=$(date +%s)
+		  # Lets assume the user want a session that last at least 10 minutes
+		  ALLOWED_AGE=$(expr $_NOW + 600)
+		  if [ "$ALLOWED_AGE" -lt "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
+		      _popp STORED_AWS_PARAMETERS
+		      unset AWS_ROLE_ALIAS
+		      return 0
+		  fi
+	      fi
+	  fi
+      fi
+
       if [ "$PROFILE_SHELL" = "bash" ]; then
 	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
@@ -588,9 +723,10 @@ get_session() {
       _aws_reset_vars
       eval "$CREDENTIALS"
       if ! _session_ok; then
-        _aws_reset_vars
-        _popp TEMP_AWS_PARAMETERS
-        return 1
+          _aws_reset_vars
+          _popp TEMP_AWS_PARAMETERS
+	  AWS_PROFILE="$PREVIOUS_AWS_PROFILE"
+          return 1
       fi
 
       local NOW=$(date +%s)
@@ -603,6 +739,7 @@ get_session() {
       local CREDS=$(echo "$CREDENTIALS" | sed 's/^/export /')
       eval "$CREDS"
       _pushp STORED_AWS_PARAMETERS
+      unset AWS_ROLE_ALIAS
       return 0
     fi
 
@@ -741,6 +878,8 @@ get_console_url () {
   shift $((OPTIND-1))
   if ! _check_exists_rolefiles ; then return 1 ; fi
 
+  _OLD_AWS_ROLE_ALIAS=$AWS_ROLE_ALIAS
+  
   if _sts_assume_role $* ; then
     local SESSION="{\"sessionId\":\"${AWS_ACCESS_KEY_ID}\",\"sessionKey\":\"${AWS_SECRET_ACCESS_KEY}\",\"sessionToken\":\"${AWS_SESSION_TOKEN}\"}"
     local ENCODED_SESSION=$(_rawurlencode ${SESSION})
@@ -772,6 +911,7 @@ get_console_url () {
       echo "$CONSOLE_URI"
     fi
     _popp TEMP_AWS_PARAMETERS
+    AWS_ROLE_ALIAS=$_OLD_AWS_ROLE_ALIAS
   else
     return 1
   fi
