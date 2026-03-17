@@ -719,13 +719,6 @@ get_session() {
     local CREDTXT
     # If there is an MFA, then it should be numeric and used for the sts get-session-token call
     if [ -n "$1" ]; then
-      # Verify the MFA token code, AWS currently only support 6 numbers
-      local re='^[0-9][0-9][0-9][0-9][0-9][0-9]$'
-      if ! [[ "$1" =~ $re ]]; then
-        _echoerr "ERROR: MFA token code can only consist of 6 numbers."
-        return 1
-      fi
-
       local MFA=$1
       local JSON=$(aws --output json --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA )
     else
