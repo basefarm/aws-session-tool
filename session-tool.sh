@@ -21,7 +21,7 @@ REGION="eu-north-1"
 #
 # test, grep, egrep, awk and sed.
 #
-if test -n "$ZSH_VERSION"; then
+if [ -n "$ZSH_VERSION" ]; then
   PROFILE_SHELL=zsh
   export AWS_SESSION_TOOL=$0:A
   # Push the current parameters into an array
@@ -153,7 +153,7 @@ if test -n "$ZSH_VERSION"; then
     print "$title"
   }
   
-elif test -n "$BASH_VERSION"; then
+elif [ -n "$BASH_VERSION" ]; then
   PROFILE_SHELL=bash
   export AWS_SESSION_TOOL="$BASH_SOURCE"
   # Pushx the current parameters into an array
@@ -422,7 +422,7 @@ get_session() {
   local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
   local PREVIOUS_AWS_PROFILE="$AWS_PROFILE"
   # Ugly hack to support people who want to store their sessions retroactively
-  if test "$*" = "-s" ; then STOREONLY=true ; fi
+  if [ "$*" = "-s" ]; then STOREONLY=true ; fi
 
   # extract options and their arguments into variables. Help and List are dealt with directly
   while getopts ":cdhlp:rsuvi:b:e" opt ; do
@@ -508,7 +508,7 @@ get_session() {
     return 0
   fi
   if ${EXPORT} ; then
-    if test -z "${PROFILE}" ; then
+    if [ -z "${PROFILE}" ]; then
       if aws configure list | grep -q '<not set>' ; then
         _echoerr "ERROR: No profile specified and no default profile configured."
         return 1
@@ -535,7 +535,7 @@ get_session() {
   fi
   if ! ${STOREONLY} ; then
     shift $((OPTIND-1))
-    if test -z "${PROFILE}" ; then
+    if [ -z "${PROFILE}" ]; then
       if aws configure list | grep -q '<not set>' ; then
         _echoerr "ERROR: No profile specified and no default profile configured."
         return 1
@@ -598,7 +598,7 @@ get_session() {
           _echoerr "ERROR: please configure the rolesfile to upload: aws configure set session-tool_rolesfile <ROLESFILE> --profile ${AWS_PROFILE}"
           return 1
         fi
-        if ! test -r ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ; then
+        if [ ! -r ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg ]; then
           _echoerr "ERROR: missing file to upload ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
           return 1
         fi
@@ -615,7 +615,7 @@ get_session() {
         _echoerr "ERROR: Please don't combine verify with other operations."
         return 1
       fi
-      if test "${AWS_SESSION_TOKEN}" = "" ; then
+      if [ "${AWS_SESSION_TOKEN}" = "" ]; then
         _echoerr "ERROR: No session token found, so there is nothing to validate."
         return 1
       fi
@@ -886,7 +886,7 @@ _check_exists_rolefiles () {
 }
 _check_exists_profile () {
   local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
-  if test -z "$PROFILE" ; then
+  if [ -z "$PROFILE" ]; then
     return 1
   fi
   return 0
@@ -1356,7 +1356,7 @@ _bashcompletion_rolehandling ()  {
 function _gen_awspw() {
   local pwok=0
   local mylen="${1:-16}"
-  if test ${mylen} -lt 16 ; then mylen=16 ; fi
+  if [ ${mylen} -lt 16 ]; then mylen=16 ; fi
   local spcchar='@#$%^*()_+-=[]{}'
 
   until (( pwok )) ; do
@@ -1373,9 +1373,9 @@ function _gen_awspw() {
     local digit=$(echo $pw | tr -cd 0-9)
     local lower=$(echo $pw | tr -cd a-z)
     local upper=$(echo $pw | tr -cd A-Z)
-    if test ${#digit} -ge 2 ; then
-      if test ${#lower} -ge 2 ; then
-        if test ${#upper} -ge 2 ; then
+    if [ ${#digit} -ge 2 ]; then
+      if [ ${#lower} -ge 2 ]; then
+        if [ ${#upper} -ge 2 ]; then
           pwok=1
         fi
       fi
@@ -1415,7 +1415,7 @@ function rotate_credentials() {
     esac
   done
   shift $((OPTIND-1))
-  if test -z "${PROFILE}" ; then
+  if [ -z "${PROFILE}" ]; then
     _echoerr "ERROR: No profile specified and no default profile configured."
     return 1
   fi
@@ -1426,23 +1426,23 @@ function rotate_credentials() {
 
   local JSON=$(aws iam get-user --region $REGION --output json --profile ${PROFILE})
   local MYUSERID=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')
-  if test "${MYUSERID:0:4}" != "AIDA" ; then
+  if [ "${MYUSERID:0:4}" != "AIDA" ]; then
     _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
     return 1
   fi
 
   local MYKEY=$(aws configure get aws_access_key_id --profile ${PROFILE})
-  if test "${MYKEY:0:4}" != "AKIA" ; then
+  if [ "${MYKEY:0:4}" != "AKIA" ]; then
     _echoerr "ERROR: Unable to retrieve a valid access_key_id for profile ${PROFILE}, unsafe to continue."
     return 1
   fi
-  if test `aws iam list-access-keys --region $REGION --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
+  if [ `aws iam list-access-keys --region $REGION --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ]; then
     if ! (( TWOKEYS )) ; then
       _echoerr "ERROR: You already have two sets of access keys. If you wish to rotate both sets, please use the -t flag."
       return 1
     else
       for k in `aws iam list-access-keys --region $REGION --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text` ; do
-        if test $k != ${MYKEY} ; then
+        if [ $k != ${MYKEY} ]; then
           aws iam delete-access-key --region $REGION --access-key-id ${k} --profile ${PROFILE}
         fi
       done
@@ -1452,7 +1452,7 @@ function rotate_credentials() {
   local JSON=$(aws --region $REGION --output json iam create-access-key --profile ${PROFILE})
   local NEWKEY=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
   local NEWSECRETKEY=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')
-  if test "${NEWKEY:0:4}" != "AKIA" ; then
+  if [ "${NEWKEY:0:4}" != "AKIA" ]; then
     _echoerr "ERROR: Unable to create valid credentials for profile ${PROFILE}, unsafe to continue."
     return 1
   fi
@@ -1460,7 +1460,7 @@ function rotate_credentials() {
   local MYPROFILE="${PROFILE}"
   local NEWUSERID=$(export AWS_ACCESS_KEY_ID="${NEWKEY}" ; export AWS_SECRET_ACCESS_KEY="${NEWSECRETKEY}" ; unset AWS_SESSION_TOKEN ; aws iam get-user --query "User.UserId" --output text --profile ${MYPROFILE})
   # echo $MYTESTUSERID
-  if test "${MYUSERID}" != "${NEWUSERID}" ; then
+  if [ "${MYUSERID}" != "${NEWUSERID}" ]; then
     _echoerr "ERROR: Something went very wrong, the new access key does not map to the user. Highly unsafe to continue. Please investigate using the AWS Console."
     return 1
   fi
@@ -1483,7 +1483,7 @@ function rotate_credentials() {
   done
 
   local MYUSERID=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')
-  if test "${MYUSERID:0:4}" != "AIDA" ; then
+  if [ "${MYUSERID:0:4}" != "AIDA" ]; then
     echo "Failed [$i]"
     _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
     _echoerr "Please submit a bug report including the below information"
@@ -1542,7 +1542,7 @@ function rotate_credentials() {
     echo ""
     NEWKEY=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
     NEWSECRETKEY=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')
-    if test "${NEWKEY:0:4}" != "AKIA" ; then
+    if [ "${NEWKEY:0:4}" != "AKIA" ]; then
       _echoerr "ERROR: Unable to create a second set of valid credentials for profile ${PROFILE}, unsafe to continue."
       _echoerr "Please submit a bug report including the below information"
       _echoerr "Raw JSON output: \"${JSON}\""
@@ -1588,7 +1588,7 @@ case $- in
   *i*)
     # interactive shell
     # Execute _prereq to actually verify prerequisites:
-    if test -n "$ZSH_VERSION"; then
+    if [ -n "$ZSH_VERSION" ]; then
       autoload -Uz bashcompinit
       bashcompinit -i
     fi
