@@ -931,19 +931,22 @@ _sts_assume_role () {
     STORED_AWS_PARAMETER_AWS_ROLE_ALIAS="$1"
   fi
 
-
+  _store_session_alias
+  
   export AWS_ROLE_ALIAS=${1:-$AWS_ROLE_ALIAS}
   read tmp ROLE_ARN SESSION_NAME EXTERNAL_ID <<< $(cat ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg 2>/dev/null | egrep -m 1 "^${AWS_ROLE_ALIAS} ")
 
   if [ -z "$ROLE_ARN" ]; then
     _echoerr "ERROR: Missing role_arn in ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
     _popp TEMP_AWS_PARAMETERS
+    _restore_session_alias
     return 1
   fi
 
   if [ -z "$SESSION_NAME" ]; then
     _echoerr "ERROR: Missing session_name in ~/.aws/${AWS_PROFILE}_roles.cfg ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
     _popp TEMP_AWS_PARAMETERS
+    _restore_session_alias
     return 1
   fi
 
@@ -954,6 +957,7 @@ _sts_assume_role () {
   fi
   if [ -z "$JSON" ]; then
     _echoerr "ERROR: Unable to obtain session"
+    _restore_session_alias
     return 1
   fi
   local JSON_NORM=$(echo $JSON | $_PYTHON -mjson.tool)
@@ -964,6 +968,7 @@ _sts_assume_role () {
   if [ -z "$AWS_SESSION_TOKEN" ]; then
     _echoerr "ERROR: Unable to obtain session"
     _popp TEMP_AWS_PARAMETERS
+    _restore_session_alias
     return 1
   fi
 
@@ -971,6 +976,21 @@ _sts_assume_role () {
   export AWS_EXPIRATION_S=$(echo $TS | awk -F, '{print $1}')
   export AWS_EXPIRATION_LOCAL=$(echo $TS | awk -F, '{print $2}')
   return 0
+}
+
+# Store the AWS_ROLE_ALIAS
+_store_session_alias () {
+    _old_role_alias=$AWS_ROLE_ALIAS
+}
+
+# Restore the AWS_ROLE_ALIAS
+_restore_session_alias () {
+    if [ "$_old_role_alias" != "" ]; then
+        AWS_ROLE_ALIAS=$_old_role_alias
+    else
+        unset AWS_ROLE_ALIAS
+    fi
+    unset _old_role_alias
 }
 
 aws-assume-role () {
