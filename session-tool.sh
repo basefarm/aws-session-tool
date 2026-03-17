@@ -736,7 +736,8 @@ get_session() {
     AWS_ACCESS_KEY_ID=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
     AWS_EXPIRATION=$(echo "$JSON_NORM" | awk -F\" '{if ($2 == "Expiration") print $4}')
     if [ -z "$AWS_SESSION_TOKEN" ]; then
-      _echoerr "ERROR: Unable to obtain session"
+      _echoerr "ERROR: Unable to retrieve session from JSON:"
+      echo "$JSON_NORM"
       _popp TEMP_AWS_PARAMETERS
       return 1
     fi
