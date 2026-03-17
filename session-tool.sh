@@ -414,42 +414,6 @@ _sec_to_local () {
   return 0
 }
 
-
-# Function to check age of Access keys
-_age_check () {
-  if [ "$AWS_PROFILE" = "" ]; then
-    _echoerr "ERROR(_age_check): AWS_PROFILE is not set"
-    return 1
-  fi
-  local CREATED=$(aws iam list-access-keys --profile $AWS_PROFILE --output json | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "CreateDate") print $4}')
-  if [ $? -ne 0 ]; then
-    echo "WARNING: Unable to check access key age."
-    return 2
-  fi
-  local TS=$(_string_to_sec $CREATED)
-
-  local SEC=$(echo $TS | awk -F, '{print $1}')
-  local LOCAL=$(echo $TS | awk -F, '{print $2}')
-  local NOW=$(date +%s)
-
-  local WARN_AGE=$( expr 3600 \* 24 \* 60 )
-  local ALLOWED_AGE=$( expr 3600 \* 24 \* 90 )
-  local ALLOWED_AGE_SEC=$( expr $SEC + $ALLOWED_AGE )
-  local ALLOWED_AGE_LOCAL=$(_sec_to_local $ALLOWED_AGE_SEC)
-  local AGE=$( expr $NOW - $WARN_AGE )
-
-  RED=$(tput setaf 1)
-  NC=$(tput sgr0)
-  if [ "$SEC" -lt "$AGE" ]; then
-    echo -e "${RED}WARNING:${NC} Your Access key is older than 60 days."
-    echo "The key will expire on: $ALLOWED_AGE_LOCAL"
-    echo "To rotate, run:"
-    echo "  rotate_credentials -n -p ${AWS_PROFILE}"
-    return 1
-  fi
-  return 0
-}
-
 # Command for creating a session
 get_session() {
   #TODO: Create function and add to get_session to disable git check.
@@ -750,8 +714,6 @@ get_session() {
     if [ "${AWS_PROFILE}" != "${AWS_PROFILE_STORED}" ] ; then
       _init_aws
     fi
-
-    _age_check
 
     _pushp TEMP_AWS_PARAMETERS
     local CREDTXT
