@@ -867,7 +867,11 @@ get_console_url () {
       echo "$CONSOLE_URI"
     fi
     _popp TEMP_AWS_PARAMETERS
-    AWS_ROLE_ALIAS=$_OLD_AWS_ROLE_ALIAS
+    if [ "$_OLD_AWS_ROLE_ALIAS" != "" ]; then
+      AWS_ROLE_ALIAS=$_OLD_AWS_ROLE_ALIAS
+    else
+      unset AWS_ROLE_ALIAS
+    fi
   else
     return 1
   fi
