@@ -505,7 +505,7 @@ get_session() {
     # the user might not want to change his default profile...
     aws configure set default.session_tool_default_profile "${PROFILE}"
     aws configure set session-tool_bucketname "${BUCKET}" --profile "${PROFILE}"
-    export AWS_PROFILE="${PROFILE}"
+    return 0
   fi
   if ${EXPORT} ; then
     if test -z "${PROFILE}" ; then
@@ -517,7 +517,7 @@ get_session() {
       fi
     fi
     if aws configure list --profile $PROFILE &>/dev/null ; then
-      export AWS_PROFILE="${PROFILE}"
+      # NOTHING
     else
       _echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
       return 1
