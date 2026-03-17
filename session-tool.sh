@@ -1,5 +1,6 @@
 SESSION_TOOL_VERSION=1.6.6
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
+REGION="eu-north-1"
 # Bash utility to manage AWS sessions, please see usage per command or
 # https://github.com/basefarm/aws-session-tool
 
@@ -382,7 +383,7 @@ _upgrade_check() {
         file_second=$(stat --format=%Y $check_file);;
     esac
     if [ $(( $current_second - $file_second )) -gt 604800 ]; then # One week
-      PUBVERSION="$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)"
+      PUBVERSION=$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)
       test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
       touch $check_file
     fi
@@ -462,8 +463,8 @@ get_session() {
   if [ ! -z "${IMPORT}" ]; then
     # Import the key found in the file or the variable it self
     if [ ! -e "${IMPORT}" ]; then
-      _KEY_ID="$(echo "${IMPORT}" | awk -F, '{print $1}')"
-      _KEY_SECRET="$(echo "${IMPORT}" | awk -F, '{print $2}')"
+      _KEY_ID=$(echo "${IMPORT}" | awk -F, '{print $1}')
+      _KEY_SECRET=$(echo "${IMPORT}" | awk -F, '{print $2}')
       if [ -z "${_KEY_ID}" -o -z "${_KEY_SECRET}" ]; then
         _echoerr "ERROR: The file '${IMPORT}' does not exist and it does not contain a valid api key-pair."
         return 1
@@ -474,8 +475,8 @@ get_session() {
         history -d $((HISTCMD-1))
       fi
     else
-      _KEY_ID="$(tail -1 "${IMPORT}" | awk -F, '{print $1}')"
-      _KEY_SECRET="$(tail -1 "${IMPORT}" | awk -F, '{print $2}')"
+      _KEY_ID=$(tail -1 "${IMPORT}" | awk -F, '{print $1}')
+      _KEY_SECRET=$(tail -1 "${IMPORT}" | awk -F, '{print $2}')
       if [ -z "${_KEY_ID}" -o -z "${_KEY_SECRET}" ]; then
         _echoerr "ERROR: The file '${IMPORT}' does not contain a valid api key-pair."
         return 1
@@ -486,7 +487,7 @@ get_session() {
       PROFILE=${DEFAULT_PROFILE}
     fi
     if [ -z "${BUCKET}" ]; then
-      BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
+      BUCKET=$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)
       if [ -z "${BUCKET}" ]; then
         _echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
         return 1
@@ -513,7 +514,7 @@ get_session() {
         _echoerr "ERROR: No profile specified and no default profile configured."
         return 1
       else
-        ${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
+        ${PROFILE}=$(aws configure list | grep ' profile ' | awk '{print $2}')
       fi
     fi
     if aws configure list --profile $PROFILE &>/dev/null ; then
@@ -525,7 +526,7 @@ get_session() {
     _KEY_ID=$(aws configure --profile "${PROFILE}" get aws_access_key_id)
     _KEY_SECRET=$(aws configure --profile "${PROFILE}" get aws_secret_access_key)
 
-    BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
+    BUCKET=$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)
     if [ -z "${BUCKET}" ]; then
       _echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
       return 1
@@ -540,7 +541,7 @@ get_session() {
         _echoerr "ERROR: No profile specified and no default profile configured."
         return 1
       else
-        ${PROFILE}="$(aws configure list | grep ' profile ' | awk '{print $2}')"
+        ${PROFILE}=$(aws configure list | grep ' profile ' | awk '{print $2}')
       fi
     fi
     if aws configure list --profile $PROFILE &>/dev/null ; then
@@ -557,24 +558,24 @@ get_session() {
         return 1
       fi
       local ROLEBUCKET
-      if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
+      if ! ROLEBUCKET=$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE}) ; then
         _echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
         return 1
       fi
       local ROLESFILE
-      if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
-        if ! aws s3 ls "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
+      if ! ROLESFILE=$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE}) ; then
+        if ! aws s3 ls --region $REGION "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
           _echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
           return 1
         else
           ROLESFILE="session-tool_roles.cfg"
         fi
       fi
-      if ! aws s3 ls "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
+      if ! aws s3 ls --region $REGION "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
         _echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
         return 1
       fi
-      if ! out="$(aws s3 cp "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1)" ; then
+      if ! out=$(aws s3 cp --region $REGION "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1) ; then
         _echoerr "ERROR: ${out}"
         _echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
         return 1
@@ -590,11 +591,11 @@ get_session() {
         return 1
       else
         local ROLEBUCKET
-        if ! ROLEBUCKET="$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE})" ; then
+        if ! ROLEBUCKET=$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE}) ; then
           _echoerr "ERROR: No bucket configure to upload roles to. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
           return 1
         fi
-        if ! ROLESFILE="$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE})" ; then
+        if ! ROLESFILE=$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE}) ; then
           _echoerr "ERROR: please configure the rolesfile to upload: aws configure set session-tool_rolesfile <ROLESFILE> --profile ${AWS_PROFILE}"
           return 1
         fi
@@ -603,7 +604,7 @@ get_session() {
           return 1
         fi
         # User must assume the role that grants write before running the upload
-        aws s3 cp ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}"
+        aws s3 cp --region $REGION ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg "s3://${ROLEBUCKET}/${ROLESFILE}"
         echo "# Roles uploaded"
         return 0
       fi
@@ -622,7 +623,7 @@ get_session() {
 
       _pushp TEMP_AWS_PARAMETERS
       _popp STORED_AWS_PARAMETERS
-      local response="$(aws sts get-caller-identity 2>&1)"
+      local response=$(aws sts get-caller-identity --region $REGION 2>&1)
       _popp TEMP_AWS_PARAMETERS
 
       if echo "${response}" | grep -q "security token included in the request is expired" ; then
@@ -720,9 +721,8 @@ get_session() {
     # If there is an MFA, then it should be numeric and used for the sts get-session-token call
     if [ -n "$1" ]; then
       local MFA=$1
-      local JSON=$(aws --output json --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA )
+      local JSON=$(aws --region $REGION --output json --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA )
     else
-      local JSON=$(aws --output json --profile $AWS_PROFILE sts get-session-token )
       _echoerr "ERROR: Missing MFA token"
       return 1
     fi
@@ -843,7 +843,7 @@ get_console_url () {
     local SIGNIN_TOKEN=$(curl --silent ${URL} | $_PYTHON -mjson.tool | grep SigninToken | awk -F\" '{print $4}')
     local CONSOLE_URI="https://signin.aws.amazon.com/federation?Action=login&Issuer=&Destination=${CONSOLE}&SigninToken=${SIGNIN_TOKEN}"
     if [ "$OPEN_BROWSER" = "1" -o "$OPEN_BROWSER_DEFAULT_PROFILE" = "1" ]; then
-      local CHROME="$(aws configure get session-tool_chrome --profile ${AWS_PROFILE} 2>/dev/null)"
+      local CHROME=$(aws configure get session-tool_chrome --profile ${AWS_PROFILE} 2>/dev/null)
       local PROFILE_OPT="--profile-directory=${AWS_ROLE_ALIAS}"
       if [ "$OPEN_BROWSER_DEFAULT_PROFILE" = "1" ]; then
         PROFILE_OPT="--profile-directory=Default"
@@ -900,7 +900,7 @@ _list_roles () {
       return 1
     fi
   else
-    if [ ! -z "$(find ~/.aws/ -iname \*_roles.cfg)" ] ; then
+    if [ ! -z $(find ~/.aws/ -iname \*_roles.cfg) ] ; then
       echo "# INFO: No AWS_PROFILE specified (can be set by get_session, or a default profile"
       echo "        can be defined with aws configure set default.session_tool_default_profile)"
       echo "#       but some profiles were located, so showing all roles defined:"
@@ -951,9 +951,9 @@ _sts_assume_role () {
   fi
 
   if [ -z "$EXTERNAL_ID" ]; then
-    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$AWS_USERNAME")
+    local JSON=$(aws --region $REGION --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$AWS_USERNAME")
   else
-    local JSON=$(aws --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$AWS_USERNAME" --external-id "$EXTERNAL_ID")
+    local JSON=$(aws --region $REGION --output json sts assume-role --role-arn "$ROLE_ARN" --role-session-name "$AWS_USERNAME" --external-id "$EXTERNAL_ID")
   fi
   if [ -z "$JSON" ]; then
     _echoerr "ERROR: Unable to obtain session"
@@ -1155,7 +1155,8 @@ _rawurlencode() {
   return 0
 }
 
-# Utility functino for checking if there is a current session which has not expired
+# Utility function for checking if there is a session which has not expired
+# Support STORED, TEMP and current sessions
 _session_ok () {
   local NOW=$(date +%s)
   case $1 in
@@ -1199,12 +1200,12 @@ _session_ok () {
 
 ## Terraform wrapper to enforce good git usage.
 _git_check () {
-  if [ -n "$(git status --porcelain)" ]; then
+  if [ -n $(git status --porcelain) ]; then
     _echoerr "You have uncommitted files, please commit and push before apply"
     git status
     return 1
   fi
-  if [ -n "$(git rev-list -n 1 HEAD@{upstream}..HEAD)" ]; then
+  if [ -n $(git rev-list -n 1 HEAD@{upstream}..HEAD) ]; then
     _echoerr "You have unpushed files, please push to branch before apply"
     git status
     return 1
@@ -1219,10 +1220,10 @@ _terraform_git_check () {
   fi
 
   # If terraform command does not point to a file assume its a function and unset it
-  [ ! -e "$(command -v terraform)" ] && unset -f terraform
+  [ ! -e $(command -v terraform) ] && unset -f terraform
 
   # Export path to real terraform binary / command
-  export TFPATH="$(which terraform)"
+  export TFPATH=$(which terraform)
 
   # Overload terraform command with function call
   terraform () {
@@ -1232,13 +1233,13 @@ _terraform_git_check () {
       for i in "$@"; do
         if [ "$i" = "apply" ]; then
           # Evaluate if git check is disabled globally, this can be a bit slow to execute
-          if [ "$(aws configure get disable_git_check)" != "true" ]; then
+          if [ $(aws configure get disable_git_check) != "true" ]; then
 
             # Current path, start looking for local git check disable here
-            prefix="$(pwd)"
+            prefix=$(pwd)
 
             # Safety feature to avoid infinate loop, 2x the directory seperator "/"
-            max_recursion="$(expr 2 "*"  "$( pwd | tr -dc '/' | awk '{ print length; }')" )"
+            max_recursion=$(expr 2 "*"  $( pwd | tr -dc '/' | awk '{ print length; }') )
 
             # If we found a local disabling file
             local_disable_found="no"
@@ -1254,7 +1255,7 @@ _terraform_git_check () {
 
               prefix="$prefix/.."
               # Stop recursion when hitting fs root
-              if [ "$(readlink -f "$prefix")" = "/" ]; then
+              if [ $(readlink -f "$prefix") = "/" ]; then
                 break
               fi
             done
@@ -1281,7 +1282,7 @@ _init_aws() {
     _echoerr "ERROR(_init_aws): Missing AWS_PROFILE"
     return 1
   fi
-  local USER="$(aws --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")"
+  local USER=$(aws --region $REGION --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")
   export AWS_USERNAME=$(echo $USER | awk -F/ '{print $2}')
   local SERIAL="${USER/:user/:mfa}"
 
@@ -1363,15 +1364,15 @@ function _gen_awspw() {
 	_echoerr "ERROR: _gen_awspw not supported on GIT bash for Windows"
 	return 1
     fi
-    local pw="$($_OPENSSL rand -base64 $((${mylen}+2)) )"
-    local pwsub="$($_OPENSSL rand -hex 1)"
-    local pwplace="$($_OPENSSL rand -hex 1)"
+    local pw=$($_OPENSSL rand -base64 $((${mylen}+2)) )
+    local pwsub=$($_OPENSSL rand -hex 1)
+    local pwplace=$($_OPENSSL rand -hex 1)
     pw="${pw:0:$((0x${pwplace:0:1}))}${spcchar:$((0x${pwsub:0:1})):1}${pw:$((0x${pwplace:0:1}+1))}"
     pw="${pw:0:$((0x${pwplace:1:1}))}${spcchar:$((0x${pwsub:1:1})):1}${pw:$((0x${pwplace:1:1}+1))}"
     pw="${pw:0:${mylen}}"
-    local digit="$(echo $pw | tr -cd 0-9)"
-    local lower="$(echo $pw | tr -cd a-z)"
-    local upper="$(echo $pw | tr -cd A-Z)"
+    local digit=$(echo $pw | tr -cd 0-9)
+    local lower=$(echo $pw | tr -cd a-z)
+    local upper=$(echo $pw | tr -cd A-Z)
     if test ${#digit} -ge 2 ; then
       if test ${#lower} -ge 2 ; then
         if test ${#upper} -ge 2 ; then
@@ -1423,62 +1424,56 @@ function rotate_credentials() {
     return 1
   fi
 
-  local JSON=$(aws iam get-user --output json --profile ${PROFILE})
-  local MYUSERID="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
+  local JSON=$(aws iam get-user --region $REGION --output json --profile ${PROFILE})
+  local MYUSERID=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')
   if test "${MYUSERID:0:4}" != "AIDA" ; then
     _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
     return 1
   fi
 
-  local MYKEY="$(aws configure get aws_access_key_id --profile ${PROFILE})"
+  local MYKEY=$(aws configure get aws_access_key_id --profile ${PROFILE})
   if test "${MYKEY:0:4}" != "AKIA" ; then
     _echoerr "ERROR: Unable to retrieve a valid access_key_id for profile ${PROFILE}, unsafe to continue."
     return 1
   fi
-  if test `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
+  if test `aws iam list-access-keys --region $REGION --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text | wc -w` -eq 2 ; then
     if ! (( TWOKEYS )) ; then
       _echoerr "ERROR: You already have two sets of access keys. If you wish to rotate both sets, please use the -t flag."
       return 1
     else
-      for k in `aws iam list-access-keys --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text` ; do
+      for k in `aws iam list-access-keys --region $REGION --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text` ; do
         if test $k != ${MYKEY} ; then
-          aws iam delete-access-key --access-key-id ${k} --profile ${PROFILE}
+          aws iam delete-access-key --region $REGION --access-key-id ${k} --profile ${PROFILE}
         fi
       done
     fi
   fi
 
-  local JSON=$(AWS_REGION=eu-west-1 aws --output json iam create-access-key --profile ${PROFILE})
-  local NEWKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
-  local NEWSECRETKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
+  local JSON=$(aws --region $REGION --output json iam create-access-key --profile ${PROFILE})
+  local NEWKEY=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
+  local NEWSECRETKEY=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')
   if test "${NEWKEY:0:4}" != "AKIA" ; then
     _echoerr "ERROR: Unable to create valid credentials for profile ${PROFILE}, unsafe to continue."
     return 1
   fi
   # echo "${NEWKEY} : ${NEWSECRETKEY}"
   local MYPROFILE="${PROFILE}"
-  local NEWUSERID="$(export AWS_ACCESS_KEY_ID="${NEWKEY}" ; export AWS_SECRET_ACCESS_KEY="${NEWSECRETKEY}" ; unset AWS_SESSION_TOKEN ; aws iam get-user --query "User.UserId" --output text --profile ${MYPROFILE})"
+  local NEWUSERID=$(export AWS_ACCESS_KEY_ID="${NEWKEY}" ; export AWS_SECRET_ACCESS_KEY="${NEWSECRETKEY}" ; unset AWS_SESSION_TOKEN ; aws iam get-user --query "User.UserId" --output text --profile ${MYPROFILE})
   # echo $MYTESTUSERID
   if test "${MYUSERID}" != "${NEWUSERID}" ; then
     _echoerr "ERROR: Something went very wrong, the new access key does not map to the user. Highly unsafe to continue. Please investigate using the AWS Console."
     return 1
   fi
 
-  # echo "# Rollback:"
-  # echo "aws configure set aws_access_key_id \"$(aws configure get aws_access_key_id --profile ${PROFILE})\" --profile ${PROFILE}"
-  # echo "aws configure set aws_secret_access_key \"$(aws configure get aws_secret_access_key --profile ${PROFILE})\" --profile ${PROFILE}"
   aws configure set aws_access_key_id "${NEWKEY}" --profile ${PROFILE}
   aws configure set aws_secret_access_key "${NEWSECRETKEY}" --profile ${PROFILE}
-  # echo "# ----"
-  # echo "aws configure set aws_access_key_id \"$(aws configure get aws_access_key_id --profile ${PROFILE})\" --profile ${PROFILE}"
-  # echo "aws configure set aws_secret_access_key \"$(aws configure get aws_secret_access_key --profile ${PROFILE})\" --profile ${PROFILE}"
 
   local prev='0'
   local JSON=''
   echo -n "# Verifying new key: 0"
   for i in `seq 1 30` ; do
     tput cub $(echo -n "$prev" | wc -m)
-    JSON=$(AWS_REGION=eu-west-1 aws --output json iam get-user --profile ${PROFILE} 2>/dev/null)
+    JSON=$(aws --region $REGION --output json iam get-user --profile ${PROFILE} 2>/dev/null)
     if echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
       break
     fi
@@ -1487,7 +1482,7 @@ function rotate_credentials() {
     sleep 1
   done
 
-  local MYUSERID="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')"
+  local MYUSERID=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "UserId") print $4}')
   if test "${MYUSERID:0:4}" != "AIDA" ; then
     echo "Failed [$i]"
     _echoerr "ERROR: Unable to retrieve a valid userid for profile ${PROFILE}, unsafe to continue."
@@ -1502,7 +1497,7 @@ function rotate_credentials() {
   echo -n "# Deleting old key: 0"
   for i in `seq 1 30` ; do
     tput cub $(echo -n "$prev" | wc -m)
-    RES="$(AWS_REGION=eu-west-1 aws iam delete-access-key --access-key-id ${MYKEY} --profile ${PROFILE} 2>&1)"
+    RES=$(aws iam delete-access-key --region $REGION --access-key-id ${MYKEY} --profile ${PROFILE} 2>&1)
     if [ $? -eq 0 -a "$RES" = '' ]; then
       break
     fi
@@ -1521,7 +1516,7 @@ function rotate_credentials() {
 
   echo "# Command to execute on other hosts to use the new api keys:"
 
-  BUCKET="$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)"
+  BUCKET=$(aws configure get session-tool_bucketname --profile ${PROFILE} 2>/dev/null)
   if [ -z "${BUCKET}" ]; then
     _echoerr "ERROR: No roles bucket provided and your profile (${PROFILE}) does not contain one."
     _echoerr "       You must manually add the bucket name to the command:"
@@ -1533,11 +1528,11 @@ function rotate_credentials() {
   MYKEY="${NEWKEY}" ; MYSECRETKEY="${NEWSECRETKEY}"
 
   if (( TWOKEYS )) ; then
-    local JSON=$(aws --output json iam create-access-key --profile ${PROFILE} 2>/dev/null)
+    local JSON=$(aws --region $REGION --output json iam create-access-key --profile ${PROFILE} 2>/dev/null)
     if ! echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
       echo -n "# Again, waiting up to 30 secs for IAM to sync "
       for i in `seq 1 30` ; do
-        local JSON="$(aws iam create-access-key --profile ${PROFILE} 2>/dev/null)"
+        local JSON=$(aws iam create-access-key --region $REGION --profile ${PROFILE} 2>/dev/null)
         if echo $JSON  | $_PYTHON -mjson.tool &>/dev/null ; then
           break
         fi
@@ -1545,8 +1540,8 @@ function rotate_credentials() {
       done
     fi
     echo ""
-    NEWKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')"
-    NEWSECRETKEY="$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')"
+    NEWKEY=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "AccessKeyId") print $4}')
+    NEWSECRETKEY=$(echo $JSON  | $_PYTHON -mjson.tool | awk -F\" '{if ($2 == "SecretAccessKey") print $4}')
     if test "${NEWKEY:0:4}" != "AKIA" ; then
       _echoerr "ERROR: Unable to create a second set of valid credentials for profile ${PROFILE}, unsafe to continue."
       _echoerr "Please submit a bug report including the below information"
@@ -1577,8 +1572,8 @@ function rotate_credentials() {
     if (( CHANGEPW )) ; then
       echo
       read -r -p "Please enter your old password: " OLDPW
-      NEWPW="$(_gen_awspw)"
-      aws iam change-password --old-password "${OLDPW}" --new-password "${NEWPW}" --profile ${PROFILE}
+      NEWPW=$(_gen_awspw)
+      aws iam change-password --region $REGION --old-password "${OLDPW}" --new-password "${NEWPW}" --profile ${PROFILE}
       echo
       echo "Your new password is \"${NEWPW}\""
     fi
