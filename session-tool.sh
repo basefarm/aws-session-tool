@@ -5,7 +5,7 @@ REGION="eu-north-1"
 # https://github.com/basefarm/aws-session-tool
 
 #
-# Prerequisits:
+# Prerequisites:
 #
 #  A working aws credentials profile, default name: awsops
 #
@@ -29,13 +29,13 @@ if test -n "$ZSH_VERSION"; then
     local i j k
     for i in ${(z)AWS_PARAMETERS} ; do
       if [ "${(P)i}" != "" ]; then
-          case $1 in
-            store* | STORE* ) j="STORED_AWS_PARAMETER_${i}" ;;
-            temp* | TEMP* )   j="TEMPORARY_AWS_PARAMETER_${i}" ;;
-            * )               echo "WARN: you can only push to arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
+        case $1 in
+          store* | STORE* ) j="STORED_AWS_PARAMETER_${i}" ;;
+          temp* | TEMP* )   j="TEMPORARY_AWS_PARAMETER_${i}" ;;
+          * )               echo "WARN: you can only push to arrays STORED_AWS_PARAMETERS and TEMP_AWS_PARAMETERS"
                               return 1 ;;
-          esac
-          export ${j}="${(P)i}"
+        esac
+        export ${j}="${(P)i}"
       fi
     done
     return 0
@@ -98,59 +98,59 @@ if test -n "$ZSH_VERSION"; then
   # Load the possibility to use the EPOCHSECONDS variable instead of forking `date` for every prompt
   zmodload -F zsh/datetime p:EPOCHSECONDS
   _color() {
-      local color=""
-      if [ "$1" -gt "$EPOCHSECONDS" ]; then
-          color="%F{green}"
-      else
-          color="%F{red}"
-      fi
-      print "$color"
+    local color=""
+    if [ "$1" -gt "$EPOCHSECONDS" ]; then
+      color="%F{green}"
+    else
+      color="%F{red}"
+    fi
+    print "$color"
   }
 
   _reset_color() {
-      print "%f"
+    print "%f"
   }
   
   _not_expired() {
-      if [ "$1" -gt "$EPOCHSECONDS" ]; then
-          return 0  # Not expired
-      else
-          return 1  # Expired
-      fi
+    if [ "$1" -gt "$EPOCHSECONDS" ]; then
+      return 0  # Not expired
+    else
+      return 1  # Expired
+    fi
   }
 
   session_tool_prompt() {
-      local prompt=""
-      local reset_color=$(_reset_color)
-      if [ ! -z "$AWS_PROFILE" ]; then
-          main_color=$(_color "$AWS_EXPIRATION_S")
-          if [ -z "$AWS_ROLE_ALIAS" ]; then
-              prompt="(${main_color}${AWS_PROFILE}${reset_color})"
-          else
-              stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
-              prompt="(${stored_color}${AWS_PROFILE}${reset_color}[${main_color}${AWS_ROLE_ALIAS}${reset_color}])"
-          fi
+    local prompt=""
+    local reset_color=$(_reset_color)
+    if [ ! -z "$AWS_PROFILE" ]; then
+      main_color=$(_color "$AWS_EXPIRATION_S")
+      if [ -z "$AWS_ROLE_ALIAS" ]; then
+        prompt="(${main_color}${AWS_PROFILE}${reset_color})"
+      else
+        stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
+        prompt="(${stored_color}${AWS_PROFILE}${reset_color}[${main_color}${AWS_ROLE_ALIAS}${reset_color}])"
       fi
-      print "$prompt"
+    fi
+    print "$prompt"
   }
 
   session_tool_title() {
-      local title=''
-      if [ ! -z "$AWS_PROFILE" ]; then
-          if [ -z "$AWS_ROLE_ALIAS" ]; then
-              if _not_expired "$AWS_EXPIRATION_S"; then
-                  title="${AWS_PROFILE}"
-              fi
-          else
-              if _not_expired "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S"; then
-                  title="${AWS_PROFILE}"
-              fi
-              if _not_expired "$AWS_EXPIRATION_S"; then
-                  title="${title}[${AWS_ROLE_ALIAS}]"
-              fi
-          fi
+    local title=''
+    if [ ! -z "$AWS_PROFILE" ]; then
+      if [ -z "$AWS_ROLE_ALIAS" ]; then
+        if _not_expired "$AWS_EXPIRATION_S"; then
+          title="${AWS_PROFILE}"
+        fi
+      else
+        if _not_expired "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S"; then
+          title="${AWS_PROFILE}"
+        fi
+        if _not_expired "$AWS_EXPIRATION_S"; then
+          title="${title}[${AWS_ROLE_ALIAS}]"
+        fi
       fi
-      print "$title"
+    fi
+    print "$title"
   }
   
 elif test -n "$BASH_VERSION"; then
@@ -193,10 +193,10 @@ elif test -n "$BASH_VERSION"; then
   # Clean up the user environment, only the AWS env variables
   #
   _aws_reset_vars () {
-      local i
-      for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
-        unset $i
-      done
+    local i
+    for i in ${AWS_PARAMETERS} AWS_SECURITY_TOKEN ; do
+      unset $i
+    done
     return 0
   }
   #
@@ -232,60 +232,59 @@ elif test -n "$BASH_VERSION"; then
   _fgRed=$(tput setaf 1); _fgRed="\[${_fgRed}\]"
   _fgGreen=$(tput setaf 2); _fgGreen="\[${_fgGreen}\]"
   _color() {
-      local color=""
-      now=$(date +%s)
-      local cmp_s="${1:-0}"
-      if [ "$cmp_s" -gt "$now" ]; then
-	  color=$_fgGreen
-      else
-	  color=$_fgRed
-      fi
-      echo "$color"
+    local color=""
+    now=$(date +%s)
+    local cmp_s="${1:-0}"
+    if [ "$cmp_s" -gt "$now" ]; then
+	    color=$_fgGreen
+    else
+	    color=$_fgRed
+    fi
+    echo "$color"
   }
 
   _not_expired() {
-      now=$(date +%s)
-      local cmp_s="${1:-0}"
-      if [ "$cmp_s" -gt "$now" ]; then
-          return 0  # Not expired
-      else
-          return 1  # Expired
-      fi
+    now=$(date +%s)
+    local cmp_s="${1:-0}"
+    if [ "$cmp_s" -gt "$now" ]; then
+      return 0  # Not expired
+    else
+      return 1  # Expired
+    fi
   }
 
   session_tool_prompt() {
-      local prompt=""
-      if [ ! -z "$AWS_PROFILE" ]; then
-          main_color=$(_color "$AWS_EXPIRATION_S")
-          if [ -z "$AWS_ROLE_ALIAS" ]; then
-              prompt="(${main_color}${AWS_PROFILE}${_fgReset})"
-          else
-              stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
-              prompt="(${stored_color}${AWS_PROFILE}${_fgReset}[${main_color}${AWS_ROLE_ALIAS}${_fgReset}])"
-          fi
+    local prompt=""
+    if [ ! -z "$AWS_PROFILE" ]; then
+      main_color=$(_color "$AWS_EXPIRATION_S")
+      if [ -z "$AWS_ROLE_ALIAS" ]; then
+        prompt="(${main_color}${AWS_PROFILE}${_fgReset})"
+      else
+        stored_color=$(_color "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S")
+        prompt="(${stored_color}${AWS_PROFILE}${_fgReset}[${main_color}${AWS_ROLE_ALIAS}${_fgReset}])"
       fi
-      echo "$prompt"
+    fi
+    echo "$prompt"
   }
 
   session_tool_title() {
-      local title=''
-      if [ ! -z "$AWS_PROFILE" ]; then
-          if [ -z "$AWS_ROLE_ALIAS" ]; then
-              if _not_expired "$AWS_EXPIRATION_S"; then
-                  title="${AWS_PROFILE}"
-              fi
-          else
-              if _not_expired "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S"; then
-                  title="${AWS_PROFILE}"
-              fi
-              if _not_expired "$AWS_EXPIRATION_S"; then
-                  title="${title}[${AWS_ROLE_ALIAS}]"
-              fi
-          fi
+    local title=''
+    if [ ! -z "$AWS_PROFILE" ]; then
+      if [ -z "$AWS_ROLE_ALIAS" ]; then
+        if _not_expired "$AWS_EXPIRATION_S"; then
+          title="${AWS_PROFILE}"
+        fi
+      else
+        if _not_expired "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S"; then
+          title="${AWS_PROFILE}"
+        fi
+        if _not_expired "$AWS_EXPIRATION_S"; then
+          title="${title}[${AWS_ROLE_ALIAS}]"
+        fi
       fi
-      echo "$title"
+    fi
+    echo "$title"
   }
-
 else
   echo >&2 "ERROR: Shell is not bash/zsh, probably csh or tcsh. session_tools will not work."
   return -1
@@ -314,17 +313,17 @@ _prereq () {
 
   if [ -z "$_PYTHON" ]; then
     _PYTHON="python"
-      type $_PYTHON >/dev/null 2>&1
-      if [ $? -eq 1 ]; then
-        type python3 >/dev/null 2>&1
-        if [ $? -eq 0 ]; then
-          _PYTHON="python3"
-        fi
+    type $_PYTHON >/dev/null 2>&1
+    if [ $? -eq 1 ]; then
+      type python3 >/dev/null 2>&1
+      if [ $? -eq 0 ]; then
+        _PYTHON="python3"
       fi
+    fi
   fi
 
   if [ "$_OPENSSL" != "" ]; then
-      type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
+    type $_OPENSSL >/dev/null 2>&1 || echo >&2 "ERROR: openssl is not found. session_tools will not work."
   fi
   type date >/dev/null 2>&1 || echo >&2 "ERROR: date is not found. session_tools will not work."
   type aws >/dev/null 2>&1 || echo >&2 "ERROR: aws is not found. session_tools will not work."
@@ -338,25 +337,25 @@ _prereq () {
   type readlink >/dev/null 2>&1 || echo >&2 "ERROR: readlink is not found. session_tool will not work."
 
   if [ "$_OPENSSL" != "" ]; then
-      # Check for pbkdf2 key derivation support
-      _OPENSSL_ARGS=""
-      ossl=$($_OPENSSL version)
-      ossl_dist=$(echo $ossl | awk '{print $1}')
-      ossl_ver=$(echo $ossl | awk '{print $2}')
+    # Check for pbkdf2 key derivation support
+    _OPENSSL_ARGS=""
+    ossl=$($_OPENSSL version)
+    ossl_dist=$(echo $ossl | awk '{print $1}')
+    ossl_ver=$(echo $ossl | awk '{print $2}')
 
-      if [ "$ossl_dist" = "OpenSSL" ]; then
+    if [ "$ossl_dist" = "OpenSSL" ]; then
 	  # Check for OpenSSL version 1.1.1 or newer
-	  if _vergte "$ossl_ver" "1.1.1"; then
-	      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
-	  fi
-      elif [ "$ossl_dist" = "LibreSSL" ]; then
-	  # Check for LibreSSL version 2.9.1 or newer
-	  if _vergte "$ossl_ver" "2.9.1"; then
-	      _OPENSSL_ARGS="-pbkdf2 -iter 50000"
-	  fi
-      else
-	  echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
+      if _vergte "$ossl_ver" "1.1.1"; then
+          _OPENSSL_ARGS="-pbkdf2 -iter 50000"
       fi
+    elif [ "$ossl_dist" = "LibreSSL" ]; then
+	  # Check for LibreSSL version 2.9.1 or newer
+      if _vergte "$ossl_ver" "2.9.1"; then
+          _OPENSSL_ARGS="-pbkdf2 -iter 50000"
+      fi
+    else
+	    echo >&2 "ERROR: Unknown OpenSSL implementation: $ossl. session_tools may not work."
+    fi
   fi
 
   export AWS_PARAMETERS="AWS_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_USER AWS_USERNAME AWS_SERIAL AWS_EXPIRATION AWS_EXPIRATION_LOCAL AWS_EXPIRATION_S"
@@ -365,29 +364,29 @@ _prereq () {
 
 _upgrade_check() {
   # Check if upgrade needed
-    local current_second file_second check_file
-    check_file="${HOME}/.aws/session-tool-update.txt"
-    if [ ! -d "${HOME}/.aws" ]; then
-      mkdir "${HOME}/.aws"
-      chmod 744 "${HOME}/.aws"
-    fi
-    if [ ! -e $check_file ]; then
-      touch $check_file
-    fi
-    current_second=$(date +%s)
-    case $OSTYPE in
-      darwin*)
-        eval `/usr/bin/stat -s -t %s $check_file`
-        file_second=$st_mtime;;
-      *)
-        file_second=$(stat --format=%Y $check_file);;
-    esac
-    if [ $(( $current_second - $file_second )) -gt 604800 ]; then # One week
-      PUBVERSION=$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)
-      test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
-      touch $check_file
-    fi
-    return 0
+  local current_second file_second check_file
+  check_file="${HOME}/.aws/session-tool-update.txt"
+  if [ ! -d "${HOME}/.aws" ]; then
+    mkdir "${HOME}/.aws"
+    chmod 744 "${HOME}/.aws"
+  fi
+  if [ ! -e $check_file ]; then
+    touch $check_file
+  fi
+  current_second=$(date +%s)
+  case $OSTYPE in
+    darwin*)
+      eval `/usr/bin/stat -s -t %s $check_file`
+      file_second=$st_mtime;;
+    *)
+      file_second=$(stat --format=%Y $check_file);;
+  esac
+  if [ $(( $current_second - $file_second )) -gt 604800 ]; then # One week
+    PUBVERSION=$(if ! curl --max-time 2 --silent "${PUBURL}"; then echo 'SESSION_TOOL_VERSION=TIMEOUT' ; fi| grep ^SESSION_TOOL_VERSION= | head -n 1 | cut -d '=' -f 2)
+    test "${PUBVERSION}" != "${SESSION_TOOL_VERSION}" && test "${PUBVERSION}" != "TIMEOUT" && echo >&2 "WARN: Your version of session-tool is outdated! You have ${SESSION_TOOL_VERSION}, the latest is ${PUBVERSION}"
+    touch $check_file
+  fi
+  return 0
 }
 
 _string_to_sec () {
@@ -655,29 +654,29 @@ get_session() {
       fi
 
       if [ ! -z "$STORED_AWS_PARAMETER_AWS_ACCESS_KEY_ID" ]; then
-	  # Check if we can just restore the environment variables, instead of reading from file
-	  if [ "$AWS_PROFILE" = "$STORED_AWS_PARAMETER_AWS_PROFILE" ]; then
-	      if [ ! -z "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
-		  # Check the expiration date
-		  _NOW=$(date +%s)
-		  # Lets assume the user want a session that last at least 10 minutes
-		  ALLOWED_AGE=$(expr $_NOW + 600)
-		  if [ "$ALLOWED_AGE" -lt "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
-		      _popp STORED_AWS_PARAMETERS
-		      unset AWS_ROLE_ALIAS
-		      return 0
-		  fi
-	      fi
-	  fi
+	      # Check if we can just restore the environment variables, instead of reading from file
+	      if [ "$AWS_PROFILE" = "$STORED_AWS_PARAMETER_AWS_PROFILE" ]; then
+	        if [ ! -z "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
+            # Check the expiration date
+            _NOW=$(date +%s)
+            # Lets assume the user want a session that last at least 10 minutes
+            ALLOWED_AGE=$(expr $_NOW + 600)
+            if [ "$ALLOWED_AGE" -lt "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
+              _popp STORED_AWS_PARAMETERS
+              unset AWS_ROLE_ALIAS
+              return 0
+            fi
+          fi
+        fi
       fi
 
       if [ "$PROFILE_SHELL" = "bash" ]; then
-	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+	      local CREDENTIALS=$($_OPENSSL aes-256-cbc $_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
       elif [ "$PROFILE_SHELL" = "zsh" ]; then
-	  local CREDENTIALS=$($_OPENSSL aes-256-cbc $=_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
+	      local CREDENTIALS=$($_OPENSSL aes-256-cbc $=_OPENSSL_ARGS -d -in ~/.aws/${AWS_PROFILE}.aes)
       else
-	  _echoerr "ERROR: Unknown/undefined shell: '$PROFILE_SHELL'"
-	  return 1
+	      _echoerr "ERROR: Unknown/undefined shell: '$PROFILE_SHELL'"
+	      return 1
       fi
       if echo "$CREDENTIALS" | egrep -qv "^AWS_"; then
         _echoerr "ERROR: Unable to restore your credentials."
@@ -688,10 +687,10 @@ get_session() {
       _aws_reset_vars
       eval "$CREDENTIALS"
       if ! _session_ok; then
-          _aws_reset_vars
-          _popp TEMP_AWS_PARAMETERS
-	  AWS_PROFILE="$PREVIOUS_AWS_PROFILE"
-          return 1
+        _aws_reset_vars
+        _popp TEMP_AWS_PARAMETERS
+        AWS_PROFILE="$PREVIOUS_AWS_PROFILE"
+        return 1
       fi
 
       local NOW=$(date +%s)
@@ -755,13 +754,13 @@ get_session() {
   # Store if requested
   if $STORE ; then
     if [ "$_OPENSSL" = "" ]; then
-	_echoerr "ERROR: Store/restore not supported on GIT bash for Windows"
-	return 1
+	    _echoerr "ERROR: Store/restore not supported on GIT bash for Windows"
+	    return 1
     fi
     touch ~/.aws/${AWS_PROFILE}.aes
     chmod 600 ~/.aws/${AWS_PROFILE}.aes
-      if [ "$PROFILE_SHELL" = "bash" ]; then
-	  $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+    if [ "$PROFILE_SHELL" = "bash" ]; then
+	    $_OPENSSL enc -aes-256-cbc $_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
 AWS_USERNAME='$AWS_USERNAME'
 AWS_SERIAL='$AWS_SERIAL'
@@ -773,8 +772,8 @@ AWS_EXPIRATION='$AWS_EXPIRATION'
 AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
 AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
 EOF
-      elif [ "$PROFILE_SHELL" = "zsh" ]; then
-	  $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
+    elif [ "$PROFILE_SHELL" = "zsh" ]; then
+	    $_OPENSSL enc -aes-256-cbc $=_OPENSSL_ARGS -salt -out ~/.aws/${AWS_PROFILE}.aes <<-EOF
 AWS_USER='$AWS_USER'
 AWS_USERNAME='$AWS_USERNAME'
 AWS_SERIAL='$AWS_SERIAL'
@@ -786,10 +785,10 @@ AWS_EXPIRATION='$AWS_EXPIRATION'
 AWS_EXPIRATION_S='$AWS_EXPIRATION_S'
 AWS_EXPIRATION_LOCAL='$AWS_EXPIRATION_LOCAL'
 EOF
-      else
-	  _echoerr "ERROR: Unknown/undefined shell: '$PROFILE_SHELL'"
-	  return 1
-      fi
+    else
+	    _echoerr "ERROR: Unknown/undefined shell: '$PROFILE_SHELL'"
+	    return 1
+    fi
   fi
   return 0
 }
@@ -861,7 +860,8 @@ get_console_url () {
           "$CHROME"  --no-first-run --no-default-browser-check $PROFILE_OPT "${CONSOLE_URI}" 2>&1 | head -3 & ;;
         cygwin* )
           echo "The -o option is not supported on CygWin";;
-        *) [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
+        *)
+         [[ $- =~ i ]] && echo >&2 "ERROR: Unknown ostype: $OSTYPE, supported types are darwin, linux and cygwin" ;;
       esac
     else
       echo "$CONSOLE_URI"
@@ -980,17 +980,17 @@ _sts_assume_role () {
 
 # Store the AWS_ROLE_ALIAS
 _store_session_alias () {
-    _old_role_alias=$AWS_ROLE_ALIAS
+  _old_role_alias=$AWS_ROLE_ALIAS
 }
 
 # Restore the AWS_ROLE_ALIAS
 _restore_session_alias () {
-    if [ "$_old_role_alias" != "" ]; then
-        AWS_ROLE_ALIAS=$_old_role_alias
-    else
-        unset AWS_ROLE_ALIAS
-    fi
-    unset _old_role_alias
+  if [ "$_old_role_alias" != "" ]; then
+    AWS_ROLE_ALIAS=$_old_role_alias
+  else
+    unset AWS_ROLE_ALIAS
+  fi
+  unset _old_role_alias
 }
 
 aws-assume-role () {
@@ -1361,8 +1361,8 @@ function _gen_awspw() {
 
   until (( pwok )) ; do
     if [ "$_OPENSSL" = "" ]; then
-	_echoerr "ERROR: _gen_awspw not supported on GIT bash for Windows"
-	return 1
+	    _echoerr "ERROR: _gen_awspw not supported on GIT bash for Windows"
+	    return 1
     fi
     local pw=$($_OPENSSL rand -base64 $((${mylen}+2)) )
     local pwsub=$($_OPENSSL rand -hex 1)
