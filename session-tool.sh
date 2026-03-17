@@ -12,9 +12,9 @@ REGION="eu-north-1"
 #  openssl   Used to encrypt/decrypt session state to file
 #            Only needed if you use the --store or --restore
 #            options to get_session command
-#  date      On Max OSX it uses the nativ date command
+#  date      On Max OSX it uses the native date command
 #            On Linux it assumes a GNU date compatible version
-#  aws       The aws CLI must be avialable and in the PATH
+#  aws       The aws CLI must be available and in the PATH
 #  curl      Used only for getting console URL
 #  python    Used for normalizing JSON
 #  json.tool Python library for parsing JSON
@@ -227,7 +227,7 @@ elif test -n "$BASH_VERSION"; then
     return 0
   }
 
-  # \[...\] around the color escape codes makes sure bash does not include them in line lenght calculations
+  # \[...\] around the color escape codes makes sure bash does not include them in line length calculations
   _fgReset=$(tput sgr0); _fgReset="\[${_fgReset}\]"
   _fgRed=$(tput setaf 1); _fgRed="\[${_fgRed}\]"
   _fgGreen=$(tput setaf 2); _fgGreen="\[${_fgGreen}\]"
@@ -494,7 +494,7 @@ get_session() {
       fi
     fi
 
-    # Assuming the user want to use this profile right away (like supplying -d in addtion to -i)
+    # Assuming the user want to use this profile right away (like supplying -d in addition to -i)
     # Need to clear existing credentials from the shell, to not confuse the process
     unset AWS_PROFILE
     unset AWS_ACCESS_KEY_ID
@@ -655,7 +655,7 @@ get_session() {
       fi
 
       if [ ! -z "$STORED_AWS_PARAMETER_AWS_ACCESS_KEY_ID" ]; then
-	  # Check if we can just resore the environment variables, instead of reading from file
+	  # Check if we can just restore the environment variables, instead of reading from file
 	  if [ "$AWS_PROFILE" = "$STORED_AWS_PARAMETER_AWS_PROFILE" ]; then
 	      if [ ! -z "$STORED_AWS_PARAMETER_AWS_EXPIRATION_S" ]; then
 		  # Check the expiration date
@@ -1017,7 +1017,7 @@ _get_session_usage() {
   echo "                 for retrieval by other shells. You will be prompted"
   echo "                 twice for a passphrase to protect the stored credentials."
   echo "                 Note that storing with an empty passphrase does not work."
-  echo "    -r           Restore previously saved state. You will be promptet for"
+  echo "    -r           Restore previously saved state. You will be prompted for"
   echo "                 the passphrase you stated when storing the session."
   echo "    -l           List currently stored sessions including a best guess on"
   echo "                 when the session expires based on file modification time."
@@ -1030,7 +1030,7 @@ _get_session_usage() {
   echo "                 Upstream location and name of the roles list are configurable."
   echo "                 Cannot be combined with other options."
   echo "    -u           Uploads ~/.aws/[profile]_session-tool_roles.cfg to the"
-  echo "                 configured location. Requires more priviledges than download,"
+  echo "                 configured location. Requires more privileges than download,"
   echo "                 so is usually done after assume-role. Cannot be combined with"
   echo "                 other options."
   echo "    -v           Verifies that the current session (not profile) is valid"
@@ -1077,7 +1077,7 @@ _assume_role_usage () {
   echo "import them again using get_session -r command."
   echo ""
   echo "The assumed role credentials will only be valid for one hour,"
-  echo "this is a limitation in the underlaying AWS assume_role function."
+  echo "this is a limitation in the underlying AWS assume_role function."
   echo ""
   echo "The selected role alias will be cached in the AWS_ROLE_ALIAS environment"
   echo "variable, so you do not have to provide it on subsequent calls to assume_role."
@@ -1116,12 +1116,12 @@ _get_console_url_usage () {
   echo "                Current cached default: $ROLE_ALIAS_DEFAULT"
   echo ""
   echo "This command will use session credentials stored in the shell from a previous"
-  echo "call to get_session The session credentials are then used to temporily assume"
+  echo "call to get_session The session credentials are then used to temporarily assume"
   echo "the given role for the purpose of obtaining the console URL."
   echo ""
   echo "After this, the session credentials from a previous call to get_session or"
   echo "assume_role will be restored. The console URL will only be valid for one hour,"
-  echo "this is a limitation in the underlaying AWS assume_role function."
+  echo "this is a limitation in the underlying AWS assume_role function."
   echo ""
   echo "The -o and -d options are currently only supported on Mac OS and Linux and"
   echo "only using the Chrome browser. You can select which browser binary to use"
@@ -1134,7 +1134,7 @@ _get_console_url_usage () {
   return 0
 }
 
-# Utility for errormessages
+# Utility for error messages
 _echoerr() { cat <<< "$@" 1>&2; }
 
 # Utility to urlencode a string
@@ -1206,7 +1206,7 @@ _git_check () {
     return 1
   fi
   if [ -n $(git rev-list -n 1 HEAD@{upstream}..HEAD) ]; then
-    _echoerr "You have unpushed files, please push to branch before apply"
+    _echoerr "You have un-pushed files, please push to branch before apply"
     git status
     return 1
   fi
@@ -1229,7 +1229,7 @@ _terraform_git_check () {
   terraform () {
     # Only perform checks if current dir is under git control
     if git status &>/dev/null; then
-      # Evaluate if terraform command contains "apply" since we can not be sure of the possition of the subcommand
+      # Evaluate if terraform command contains "apply" since we can not be sure of the position of the subcommand
       for i in "$@"; do
         if [ "$i" = "apply" ]; then
           # Evaluate if git check is disabled globally, this can be a bit slow to execute
@@ -1238,7 +1238,7 @@ _terraform_git_check () {
             # Current path, start looking for local git check disable here
             prefix=$(pwd)
 
-            # Safety feature to avoid infinate loop, 2x the directory seperator "/"
+            # Safety feature to avoid infinite loop, 2x the directory separator "/"
             max_recursion=$(expr 2 "*"  $( pwd | tr -dc '/' | awk '{ print length; }') )
 
             # If we found a local disabling file
@@ -1274,7 +1274,7 @@ _terraform_git_check () {
   }
 }
 
-# Utility for initializing variables the first time this utilitie is used in a shell
+# Utility for initializing variables the first time this utility is used in a shell
 # Assumes AWS_PROFILE is set
 _init_aws() {
 
@@ -1585,7 +1585,8 @@ function rotate_credentials() {
 
 # Main loop.
 case $- in
-  *i*)    # interactive shell
+  *i*)
+    # interactive shell
     # Execute _prereq to actually verify prerequisites:
     if test -n "$ZSH_VERSION"; then
       autoload -Uz bashcompinit
@@ -1596,13 +1597,14 @@ case $- in
     _upgrade_check
     # Checking for terraform, activating wrapper to enforce good git usage.
     _terraform_git_check
-    # Configure bash completetion
+    # Configure bash completion
     complete -F _bashcompletion_sessionhandling get_session
     complete -F _bashcompletion_rolehandling get_console_url
     complete -F _bashcompletion_rolehandling assume_role
     complete -F _bashcompletion_rotate rotate_credentials
     ;;
-  *)      # non-interactive shell
+  *)
+    # non-interactive shell
     # Execute _prereq to actually verify prerequisites:
     _prereq
     ;;
