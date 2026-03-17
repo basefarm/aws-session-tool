@@ -913,11 +913,6 @@ _list_roles () {
   return 0
 }
 _sts_assume_role () {
-  if ! _session_ok STORED ; then
-    ((DBG)) && echo $STORED_AWS_PARAMETER_EXPIRATION_LOCAL
-    return 1
-  fi
-
   _pushp TEMP_AWS_PARAMETERS
   _popp STORED_AWS_PARAMETERS
 
