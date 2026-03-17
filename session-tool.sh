@@ -723,8 +723,8 @@ get_session() {
       local JSON=$(aws --output json --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA )
     else
       local JSON=$(aws --output json --profile $AWS_PROFILE sts get-session-token )
-      # When not using MFA, it is usually by mistake so we issue a warning
-      _echoerr "# Warning: you did not input an MFA token. Proceed at your own risk."
+      _echoerr "ERROR: Missing MFA token"
+      return 1
     fi
     if [ -z "$JSON" ]; then
       _echoerr "ERROR: Unable to obtain session"
