@@ -60,7 +60,7 @@ for managing your AWS session credentials. This is useful for `terraform` and
                  for retrieval by other shells. You will be prompted
                  twice for a passphrase to protect the stored credentials.
                  Note that storing with an empty passphrase does not work.
-* `-r`           Restore previously saved state. You will be promptet for
+* `-r`           Restore previously saved state. You will be prompted for
                  the passphrase you stated when storing the session.
 * `-l`           List currently stored sessions including a best guess on
                  when the session expires based on file modification time.
@@ -73,7 +73,7 @@ for managing your AWS session credentials. This is useful for `terraform` and
                  Upstream location and name of the roles list are configurable.
                  Cannot be combined with other options.
 * `-u`           Uploads ~/.aws/[profile]_session-tool_roles.cfg to the
-                 configured location. Requires more priviledges than download,
+                 configured location. Requires more privileges than download,
                  so is usually done after assume-role. Cannot be combined with
                  other options.
 * `-v`           Verifies that the current session (not profile) is valid
@@ -114,7 +114,7 @@ session using get_session with the -s option and then to
 import them again using get_session -r command.
 
 The assumed role credentials will only be valid for one hour,
-this is a limitation in the underlaying AWS assume_role function.
+this is a limitation in the underlying AWS assume_role function.
 
 The selected role alias will be cached in the AWS_ROLE_ALIAS environment
 variable, so you do not have to provide it on subsequent calls to assume_role.
@@ -151,12 +151,12 @@ foo-test arn:aws:iam::0987654321:role/admin bf-awsopslab-admin
                 Current cached default: <no cached value>
 
 This command will use session credentials stored in the shell from a previous
-call to get_session The session credentials are then used to temporily assume
+call to get_session The session credentials are then used to temporarily assume
 the given role for the purpose of obtaining the console URL.
 
 After this, the session credentials from a previous call to get_session or
 assume_role will be restored. The console URL will only be valid for one hour,
-this is a limitation in the underlaying AWS assume_role function.
+this is a limitation in the underlying AWS assume_role function.
 
 The -o and -d options are currently only supported on Mac OS and Linux and
 only using the Chrome browser. You can select which browser binary to use
@@ -173,7 +173,7 @@ information about roles definitions and files.
 
 `rotate_credentials [-p PROFILE] [-y|-n] [-t]`
 
-This command will rotate API keys and optionaly also set a new password.
+This command will rotate API keys and optionally also set a new password.
 
 * `-p profile`   Which AWS credentials profile should be rotated.
                  If not specified, the default profile for session-tool will be used.
@@ -207,6 +207,7 @@ If you want to disable it globally for the default AWS profile, do `aws configur
 To re-enable, remove disable_git_check from `~/.aws/config`
 
 Terraform has a `chdir` flag you can set to change directories before applying. When using this wrapper, this is not supported.
+
 # Files
 
 ## ~/.aws/[profile]_session-tool_roles.cfg
@@ -227,7 +228,7 @@ alias role_arn session_name external_id
 * `alias`A random name you assign to this role_arn.
 * `role_arn` The aws arn of the role you want to assume.
 * `session_name` A tag that is added to your login trail.
-* `external_id` The external ID assisiated with this role.
+* `external_id` The external ID associated with this role.
 
 The tree first are mandatory, while `external_id` is optional, end the line after
 `session_name` if `external_id` is not provided.
@@ -242,23 +243,23 @@ For AWS CLI v1 you must have an up-to-date version of the AWS CLI installed on t
 For AWS CLI v2 you only need it installed.
 
 You must have an IAM user with credentials profile stored in your `~/.aws/credentials` file.
-This is usually accompished by importing your credentials from AWS using the import (`-i` option) function
+This is usually accomplished by importing your credentials from AWS using the import (`-i` option) function
 of session tool.
 
 The list of roles are downloaded (`-d`) from an S3 bucket configured using the `-b` option when
 setting up session tool using the import command (`-i`).
 
-By default session tool will create a profile called `awsops`. Other profiles in your aws envrionment
+By default session tool will create a profile called `awsops`. Other profiles in your aws environment
 can co-exist without interference.
 
-Various external dependecies:
+Various external dependencies:
 
 * `openssl`   Used to encrypt/decrypt session state to file.
               Only needed if you use the -s or -r
               options to get_session command.
-* `date`      On Max OSX it uses the nativ date command.
+* `date`      On Max OSX it uses the native date command.
               On Linux it assumes a GNU date compatible version.
-* `aws`       The aws CLI must be avialable and in the PATH.
+* `aws`       The aws CLI must be available and in the PATH.
 * `curl`      Used only for getting console URL.
 * `python`    Used for normalizing JSON.
 * `json.tool` Python library for parsing JSON.
@@ -281,7 +282,7 @@ Maintained for the user and need the for the tool itself:
 * `AWS_USER` The arn of the current authenticated user.
 * `AWS_SERIAL` The arn of the MFA instance for the current user.
 * `AWS_ROLE_ALIAS` The alias of the last used role.
-* `AWS_EXPIRATION` The time when the current session expires as received from aws (usualy in UTC).
+* `AWS_EXPIRATION` The time when the current session expires as received from aws (usually in UTC).
 * `AWS_EXPIRATION_S` The time when the current session expires in seconds since the epoch.
 * `AWS_EXPIRATION_LOCAL` The time when the current session expires in the current locale.
 
@@ -413,15 +414,15 @@ Example for bash, add this to your `.bashrc` file or similar::
 # Default Linux shell prompt:
 # export PS1='[\u@\h \W]\$ '
 function prompt_command {
-    session_prompt=$(session_tool_prompt)
-    if [ "$session_prompt" != "" ]; then
-	session_prompt=" $session_prompt"
-    fi
-    # Keep only one of the two following lines:
-    export PS1="\s-\v${session_prompt} \$ "      # Shell prompt mac
-    export PS1="[\u@\h${session_prompt} \W]\$ "  # Shell prompt linux
-    # Keep only if you want a window title with session status:
-    echo -ne "\033]0;$(session_tool_title)\007"  # Window title
+  session_prompt=$(session_tool_prompt)
+  if [ "$session_prompt" != "" ]; then
+    session_prompt=" $session_prompt"
+  fi
+  # Keep only one of the two following lines:
+  export PS1="\s-\v${session_prompt} \$ "      # Shell prompt mac
+  export PS1="[\u@\h${session_prompt} \W]\$ "  # Shell prompt linux
+  # Keep only if you want a window title with session status:
+  echo -ne "\033]0;$(session_tool_title)\007"  # Window title
 }
 
 export PROMPT_COMMAND="prompt_command"
