@@ -516,12 +516,6 @@ get_session() {
         ${PROFILE}=$(aws configure list | grep ' profile ' | awk '{print $2}')
       fi
     fi
-    if aws configure list --profile $PROFILE &>/dev/null ; then
-      # NOTHING
-    else
-      _echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
-      return 1
-    fi
     _KEY_ID=$(aws configure --profile "${PROFILE}" get aws_access_key_id)
     _KEY_SECRET=$(aws configure --profile "${PROFILE}" get aws_secret_access_key)
 
