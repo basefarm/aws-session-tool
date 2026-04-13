@@ -1,4 +1,4 @@
-SESSION_TOOL_VERSION=1.6.7
+SESSION_TOOL_VERSION=1.6.8
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 REGION="eu-north-1"
 # Bash utility to manage AWS sessions, please see usage per command or
@@ -515,12 +515,6 @@ get_session() {
       else
         ${PROFILE}=$(aws configure list | grep ' profile ' | awk '{print $2}')
       fi
-    fi
-    if aws configure list --profile $PROFILE &>/dev/null ; then
-      # NOTHING
-    else
-      _echoerr "ERROR: The specified profile ${PROFILE} cannot be found."
-      return 1
     fi
     _KEY_ID=$(aws configure --profile "${PROFILE}" get aws_access_key_id)
     _KEY_SECRET=$(aws configure --profile "${PROFILE}" get aws_secret_access_key)
@@ -1199,12 +1193,12 @@ _session_ok () {
 
 ## Terraform wrapper to enforce good git usage.
 _git_check () {
-  if [ -n $(git status --porcelain) ]; then
+  if [ -n "$(git status --porcelain)" ]; then
     _echoerr "You have uncommitted files, please commit and push before apply"
     git status
     return 1
   fi
-  if [ -n $(git rev-list -n 1 HEAD@{upstream}..HEAD) ]; then
+  if [ -n "$(git rev-list -n 1 HEAD@{upstream}..HEAD)" ]; then
     _echoerr "You have un-pushed files, please push to branch before apply"
     git status
     return 1
@@ -1232,7 +1226,7 @@ _terraform_git_check () {
       for i in "$@"; do
         if [ "$i" = "apply" ]; then
           # Evaluate if git check is disabled globally, this can be a bit slow to execute
-          if [ $(aws configure get disable_git_check) != "true" ]; then
+          if [ "$(aws configure get disable_git_check)" != "true" ]; then
 
             # Current path, start looking for local git check disable here
             prefix=$(pwd)
@@ -1441,7 +1435,7 @@ function rotate_credentials() {
       return 1
     else
       for k in `aws iam list-access-keys --region $REGION --profile ${PROFILE} --query "AccessKeyMetadata[].AccessKeyId" --output text` ; do
-        if [ $k != ${MYKEY} ]; then
+        if [ "$k" != "${MYKEY}" ]; then
           aws iam delete-access-key --region $REGION --access-key-id ${k} --profile ${PROFILE}
         fi
       done
