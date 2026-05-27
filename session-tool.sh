@@ -1285,19 +1285,13 @@ _init_aws() {
     _echoerr "ERROR(_init_aws): Missing AWS_PROFILE"
     return 1
   fi
-  local USER=$(aws --region $REGION --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")
-  export AWS_USERNAME=$(echo $USER | awk -F/ '{print $2}')
-  local SERIAL="${USER/:user/:mfa}"
 
-  if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
-    export AWS_USER=$USER
-    export AWS_SERIAL=$SERIAL
-  else
-    _echoerr "ERROR: Unable to obtain AWS user ARN using the profile: $AWS_PROFILE"
-    _echoerr "DEBUG: USER=$USER"
-    _echoerr "DEBUG: SERIAL=$SERIAL"
-    return 1
-  fi
+  # Assume user have only one MFA device (session tool wil only use the first)
+  local MFA_INFO=$(aws iam --region $REGION --profile $AWS_PROFILE list-mfa-devices --query 'MFADevices[0].[UserName, SerialNumber]' --output text)
+  export AWS_USERNAME=$(echo $MFA_INFO | cut -f 1)
+  export AWS_SERIAL=$(echo $MFA_INFO | cut -f 2)
+  export AWS_USER=$(aws sts --region $REGION --profile $AWS_PROFILE get-caller-identity --query 'Arn' --output text)
+
   return 0
 }
 
