@@ -1,4 +1,4 @@
-SESSION_TOOL_VERSION=1.6.8
+SESSION_TOOL_VERSION=1.6.9
 PUBURL="https://raw.githubusercontent.com/basefarm/aws-session-tool/master/session-tool.sh"
 REGION="eu-north-1"
 # Bash utility to manage AWS sessions, please see usage per command or
@@ -414,6 +414,39 @@ _sec_to_local () {
   return 0
 }
 
+# Download roles file from S3
+# Assume bucket name is in ~/.aws/config and roles file name can be located
+# Require name of aws profile to use as first argument
+_download () {
+  local AWS_PROFILE=$1
+  local ROLEBUCKET
+  if ! ROLEBUCKET=$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE}) ; then
+    _echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
+    return 1
+  fi
+  local ROLESFILE
+  if ! ROLESFILE=$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE}) ; then
+    if ! aws s3 ls --region $REGION --profile ${AWS_PROFILE} "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
+      _echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
+      return 1
+    else
+      ROLESFILE="session-tool_roles.cfg"
+    fi
+  fi
+  if ! aws s3 ls --region $REGION "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
+    _echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
+    return 1
+  fi
+  if ! out=$(aws s3 cp --region $REGION "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1) ; then
+    _echoerr "ERROR: ${out}"
+    _echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
+    return 1
+  else
+    echo "# Roles downloaded"
+    return 0
+  fi
+}
+
 # Command for creating a session
 get_session() {
   #TODO: Create function and add to get_session to disable git check.
@@ -505,6 +538,8 @@ get_session() {
     # the user might not want to change his default profile...
     aws configure set default.session_tool_default_profile "${PROFILE}"
     aws configure set session-tool_bucketname "${BUCKET}" --profile "${PROFILE}"
+    # Finalize import by downloading roles file
+    _download $PROFILE
     return 0
   fi
   if ${EXPORT} ; then
@@ -550,32 +585,7 @@ get_session() {
         _echoerr "ERROR: uploading and downloading are mutually exclusive..."
         return 1
       fi
-      local ROLEBUCKET
-      if ! ROLEBUCKET=$(aws configure get session-tool_bucketname --profile ${AWS_PROFILE}) ; then
-        _echoerr "ERROR: No bucket configure to download roles from. Please configure with: aws configure set session-tool_bucketname <BUCKETNAME> --profile ${AWS_PROFILE}"
-        return 1
-      fi
-      local ROLESFILE
-      if ! ROLESFILE=$(aws configure get session-tool_rolesfile --profile ${AWS_PROFILE}) ; then
-        if ! aws s3 ls --region $REGION "${ROLEBUCKET}/session-tool_roles.cfg" | grep -q session-tool_roles.cfg ; then
-          _echoerr "ERROR: There is no rolesfile configured and no session-tool_roles.cfg in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} is not the right bucket, or you need to configure session-tool_rolesfile?"
-          return 1
-        else
-          ROLESFILE="session-tool_roles.cfg"
-        fi
-      fi
-      if ! aws s3 ls --region $REGION "${ROLEBUCKET}/${ROLESFILE}" --profile ${AWS_PROFILE} | grep -q ${ROLESFILE} ; then
-        _echoerr "ERROR: There is no ${ROLESFILE} in ${ROLEBUCKET}. Maybe ${ROLEBUCKET} or ${ROLESFILE} is misconfigured?"
-        return 1
-      fi
-      if ! out=$(aws s3 cp --region $REGION "s3://${ROLEBUCKET}/${ROLESFILE}" ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg --profile ${AWS_PROFILE} 2>&1) ; then
-        _echoerr "ERROR: ${out}"
-        _echoerr "       Unable to download s3://${ROLEBUCKET}/${ROLESFILE} into ~/.aws/${AWS_PROFILE}_session-tool_roles.cfg"
-        return 1
-      else
-        echo "# Roles downloaded"
-        return 0
-      fi
+      _download
     fi
 
     if ${UPLOAD} ; then
@@ -1275,19 +1285,13 @@ _init_aws() {
     _echoerr "ERROR(_init_aws): Missing AWS_PROFILE"
     return 1
   fi
-  local USER=$(aws --region $REGION --output text --profile $AWS_PROFILE iam get-user --query "User.Arn")
-  export AWS_USERNAME=$(echo $USER | awk -F/ '{print $2}')
-  local SERIAL="${USER/:user/:mfa}"
 
-  if echo "$SERIAL" | grep -q 'arn:aws:iam'; then
-    export AWS_USER=$USER
-    export AWS_SERIAL=$SERIAL
-  else
-    _echoerr "ERROR: Unable to obtain AWS user ARN using the profile: $AWS_PROFILE"
-    _echoerr "DEBUG: USER=$USER"
-    _echoerr "DEBUG: SERIAL=$SERIAL"
-    return 1
-  fi
+  # Assume user have only one MFA device (session tool wil only use the first)
+  local MFA_INFO=$(aws iam --region $REGION --profile $AWS_PROFILE list-mfa-devices --query 'MFADevices[0].[UserName, SerialNumber]' --output text)
+  export AWS_USERNAME=$(echo $MFA_INFO | cut -f 1)
+  export AWS_SERIAL=$(echo $MFA_INFO | cut -f 2)
+  export AWS_USER=$(aws sts --region $REGION --profile $AWS_PROFILE get-caller-identity --query 'Arn' --output text)
+
   return 0
 }
 
