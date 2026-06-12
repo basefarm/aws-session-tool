@@ -1288,8 +1288,8 @@ _init_aws() {
 
   # Assume user have only one MFA device (session tool wil only use the first)
   local MFA_INFO=$(aws iam --region $REGION --profile $AWS_PROFILE list-mfa-devices --query 'MFADevices[0].[UserName, SerialNumber]' --output text)
-  export AWS_USERNAME=$(echo $MFA_INFO | cut -f 1)
-  export AWS_SERIAL=$(echo $MFA_INFO | cut -f 2)
+  export AWS_USERNAME=$(echo $MFA_INFO | cut -d ' ' -f 1)
+  export AWS_SERIAL=$(echo $MFA_INFO | cut -d ' ' -f 2)
   export AWS_USER=$(aws sts --region $REGION --profile $AWS_PROFILE get-caller-identity --query 'Arn' --output text)
 
   return 0
