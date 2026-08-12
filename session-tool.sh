@@ -450,7 +450,8 @@ _download () {
 # Command for creating a session
 get_session() {
   #TODO: Create function and add to get_session to disable git check.
-  local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
+  local OPTIND OPTARG opt
+  local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}"
   local STORE=false; local RESTORE=false; local DOWNLOAD=false; local VERIFY=false
   local UPLOAD=false ; local STOREONLY=false; local IMPORT; local BUCKET; local EXPORT=false
   local PREVIOUS_AWS_PROFILE="$AWS_PROFILE"
@@ -797,7 +798,7 @@ EOF
 }
 
 assume_role () {
-  local OPTIND
+  local OPTIND OPTARG opt
 
   # extract options and their arguments into variables. Help and List are dealt with directly
   while getopts ":hl" opt ; do
@@ -815,7 +816,7 @@ assume_role () {
 }
 
 get_console_url () {
-  local OPTIND
+  local OPTIND OPTARG opt
 
   # extract options and their arguments into variables. Help and List are dealt with directly
   local CONSOLE=$(_rawurlencode "https://console.aws.amazon.com/")
@@ -1395,7 +1396,8 @@ function _rotate_credentials_usage () {
 }
 
 function rotate_credentials() {
-  local OPTIND ; local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local CHANGEPW=0; local NOTCHANGEPW=0 ; local MAXAGE=80 ; local TWOKEYS=0
+  local OPTIND OPTARG opt
+  local PROFILE="${AWS_PROFILE:-$(aws configure get default.session_tool_default_profile)}" ; local CHANGEPW=0; local NOTCHANGEPW=0 ; local MAXAGE=80 ; local TWOKEYS=0
 
   # extract options and their arguments into variables. Help is dealt with directly
   while getopts ":yhtp:n" opt ; do
