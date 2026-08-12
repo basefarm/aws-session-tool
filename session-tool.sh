@@ -722,8 +722,15 @@ get_session() {
 
     _pushp TEMP_AWS_PARAMETERS
     # If there is an MFA, then it should be numeric and used for the sts get-session-token call
-    if [ -n "$1" ]; then
-      local MFA=$1
+    local MFA="$1"
+    if [ "$MFA" = "" ]; then
+      # See if we can locate a YubiKey device
+      local YUBIKEY_SLOT=$(_yubikey_slot_name $AWS_PROFILE)
+      if [ "$YUBIKEY_SLOT" != "" ]; then
+        MFA=$(ykman oath accounts code -s $YUBIKEY_SLOT)
+      fi
+    fi
+    if [ -n "$MFA" ]; then
       local JSON=$(aws --region $REGION --output json --profile $AWS_PROFILE sts get-session-token --serial-number=$AWS_SERIAL --token-code $MFA )
     else
       _echoerr "ERROR: Missing MFA token"
@@ -879,6 +886,98 @@ get_console_url () {
   else
     return 1
   fi
+  return 0
+}
+
+yubikey () {
+  local OPTIND OPTARG opt PROFILE=$(_yubikey_profile)
+  while getopts ":p:e:dmh" opt ; do
+    case "$opt" in
+      p)  PROFILE=$OPTARG;;
+      e)  _enable_yubikey "$OPTARG" "$PROFILE"; return 0;;
+      d)  _disable_yubikey "$PROFILE"; return 0 ;;
+      m)  _yubikey_token "$PROFILE"; return 0;;
+      h)  _yubikey_usage; return 0 ;;
+      :)  _echoerr "ERROR: Option -$OPTARG requires an argument."; return 1 ;;
+      \?) _echoerr "ERROR: Invalid option: -$OPTARG"; return 1 ;;
+    esac
+  done
+  local YUBIKEY_SLOT=$(_yubikey_slot_name "$PROFILE")
+  if [ "$YUBIKEY_SLOT" = "" ]; then
+    echo "YubiKey integration not enabled for profile $PROFILE"
+  else
+    echo "YubiKey integration enabled for profile $PROFILE using slot $YUBIKEY_SLOT"
+  fi
+}
+
+_enable_yubikey() {
+  local SEED=$1
+  local PROFILE=$2
+  local YUBIKEY_SLOT="AWS:${PROFILE}"
+  ykman oath accounts add --issuer AWS --oath-type TOTP --digits 6 --algorithm SHA1 --touch $PROFILE $SEED
+  aws configure set yubikey_slot "$YUBIKEY_SLOT" --profile ${PROFILE}
+  return 0
+}
+
+_disable_yubikey() {
+  local PROFILE=$1
+  local YUBIKEY_SLOT=$(_yubikey_slot_name "$PROFILE")
+  if [ "$YUBIKEY_SLOT" = "" ]; then
+    _echoerr "ERROR: YubiKey integration not enabled for this profile"
+    return 1
+  fi
+  aws configure set yubikey_slot "" --profile ${PROFILE}
+  ykman oath accounts delete $YUBIKEY_SLOT
+  return 0
+}
+
+# Locate prifile name in this order:
+# 1. Provided first argument
+# 2. AWS_PROFILE env variable
+# 3. Default profile in ~/.aws/config
+_yubikey_profile () {
+  local PROFILE=${1:-$AWS_PROFILE}
+  PROFILE=${PROFILE:-$(aws configure get default.session_tool_default_profile)}
+  if [ "$PROFILE" = "" ]; then
+    _echoerr "ERROR: Missing profile"
+    return 1
+  fi
+  echo "$PROFILE"
+}
+
+# If an empty slot name is returned, YubiKey has not been enabled for this profile.
+_yubikey_slot_name () {
+  local PROFILE=$1
+  echo $(aws configure get yubikey_slot --profile ${PROFILE})
+}
+
+_yubikey_token() {
+  local YUBIKEY_SLOT=$(_yubikey_slot_name "$1")
+  local MFA
+  if [ "$YUBIKEY_SLOT" != "" ]; then
+    MFA=$(ykman oath accounts code -s $YUBIKEY_SLOT)
+  fi
+  if [ "$MFA" = "" ]; then
+    _echoerr "ERROR: YubiKey integration not enabled for this profile"
+    return 1
+  fi
+  echo "$MFA"
+}
+
+_yubikey_usage () {
+  echo "Usage: yubikey [-h] [-p profile] [-e slot|-d|-m]"
+  echo ""
+  echo "  -p profile Which AWS credentials profile to perform action on."
+  echo "  -e seed    Enable YubiKey integration with session tool."
+  echo "  -d         Disable Yubikey integration."
+  echo "  -m         Get MFA token."
+  echo "  -h         Show this usage."
+  echo "Without any arguments, the command will show the current status."
+  echo "If providing a profile with the -p argument, it must be done"
+  echo "before any other argument: yubikey -p awsops -m"
+  echo ""
+  echo "If not providing a profile, it will use the current active profile"
+  echo "or the default profile."
   return 0
 }
 
