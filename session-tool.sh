@@ -720,7 +720,6 @@ get_session() {
     fi
 
     _pushp TEMP_AWS_PARAMETERS
-    local CREDTXT
     # If there is an MFA, then it should be numeric and used for the sts get-session-token call
     if [ -n "$1" ]; then
       local MFA=$1
