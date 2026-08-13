@@ -514,6 +514,15 @@ get_session -p <profile> # Get a session for non-default profile, assuming you s
 get_session <MFA token>  # Manually providing the token code from your phone authenticator app.
 ```
 
+## Secure the YubiKey
+
+You should make sure your OATH application on the YubiKey is password protected.
+A password can be set using this command:
+
+```sh
+ykman oath access change
+```
+
 ## Disable YubiKey integration
 
 ```sh
