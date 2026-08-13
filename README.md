@@ -459,39 +459,48 @@ brew install ykman
 
 ### Windows
 
-Have not been tested.
+Has not been tested.
 
 ## Get the MFA seed and enable integration
 
+You will perform these steps to prepare Yubikey for MFA authentication.
+
+1. Get a MFA seed from AWS.
+2. Create an account in YubiKey by providing the MFA seed from AWS.
+3. Confirm the MFA to AWS by provide two token codes.
+
+
+### 1. Get a MFA seed from AWS.
+
 This depends on your environment. During MFA device creation AWS will have the option to show the seed.
-Temporarily store the seed in your preferred location. AWS will ask for two consecutive token codes.
-To generate these tokens, you need to proceed with:
+Temporarily store the seed in your preferred location. AWS will ask for two consecutive token codes. You will do this in step 3.
+
+### 2. Create an account in YubiKey by providing the MFA seed from AWS.
 
 ```sh
 yubikey -e <seed>
 ```
 
 This will:
-1. Create an account in your yubikey oath space and set the seed.
-2. Configure session tool to use this account.
+a. Create an account in your yubikey oath space and set the seed.
+b. Configure session tool to use this account.
 
-Generate two consecutive token codes:
-```sh
-yubikey -m  # Wait about 30 seconds before running the next command
-yubikey -m
-```
-
-Provide the two token codes to AWS.
-
-Setting up YubiKey integration for non-default profile:
+Alternatively, you can setup YubiKey integration for non-default profile:
 
 ```sh
 yubikey -p <profile> -e <seed>
 ```
 
-**Note:** The profile option must precede the `-e` option.
+### 3. Confirm the MFA to AWS by provide two token codes.
 
-**Note:** To retrieve token codes: `yubikey -p <profile> -m`.
+Generate two consecutive token codes:
+
+```sh
+yubikey -m  # Wait about 30 seconds before running the next command
+yubikey -m
+```
+
+**Note:** To retrieve token codes for non-default profile: `yubikey -p <profile> -m`.
 
 ## Using YubiKey
 
