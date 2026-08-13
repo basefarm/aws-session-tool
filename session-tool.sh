@@ -948,20 +948,18 @@ _yubikey_profile () {
 # If an empty slot name is returned, YubiKey has not been enabled for this profile.
 _yubikey_slot_name () {
   local PROFILE=$1
-  echo $(aws configure get yubikey_slot --profile ${PROFILE})
+  aws configure get yubikey_slot --profile ${PROFILE}
 }
 
 _yubikey_token() {
   local YUBIKEY_SLOT=$(_yubikey_slot_name "$1")
   local MFA
   if [ "$YUBIKEY_SLOT" != "" ]; then
-    MFA=$(ykman oath accounts code -s $YUBIKEY_SLOT)
-  fi
-  if [ "$MFA" = "" ]; then
+    ykman oath accounts code -s $YUBIKEY_SLOT
+  else
     _echoerr "ERROR: YubiKey integration not enabled for this profile"
     return 1
   fi
-  echo "$MFA"
 }
 
 _yubikey_usage () {
