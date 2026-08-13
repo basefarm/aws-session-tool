@@ -894,10 +894,10 @@ yubikey () {
   while getopts ":p:e:dmh" opt ; do
     case "$opt" in
       p)  PROFILE=$OPTARG;;
-      e)  _enable_yubikey "$OPTARG" "$PROFILE"; return 0;;
-      d)  _disable_yubikey "$PROFILE"; return 0 ;;
-      m)  _yubikey_token "$PROFILE"; return 0;;
-      h)  _yubikey_usage; return 0 ;;
+      e)  _enable_yubikey "$OPTARG" "$PROFILE"; return $?;;
+      d)  _disable_yubikey "$PROFILE"; return $? ;;
+      m)  _yubikey_token "$PROFILE"; return $?;;
+      h)  _yubikey_usage; return $? ;;
       :)  _echoerr "ERROR: Option -$OPTARG requires an argument."; return 1 ;;
       \?) _echoerr "ERROR: Invalid option: -$OPTARG"; return 1 ;;
     esac
