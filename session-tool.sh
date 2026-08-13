@@ -931,7 +931,7 @@ _disable_yubikey() {
   return 0
 }
 
-# Locate prifile name in this order:
+# Locate profile name in this order:
 # 1. Provided first argument
 # 2. AWS_PROFILE env variable
 # 3. Default profile in ~/.aws/config
