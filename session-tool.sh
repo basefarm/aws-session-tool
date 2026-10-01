@@ -586,7 +586,8 @@ get_session() {
         _echoerr "ERROR: uploading and downloading are mutually exclusive..."
         return 1
       fi
-      _download
+      _download $PROFILE
+      return 0
     fi
 
     if ${UPLOAD} ; then
