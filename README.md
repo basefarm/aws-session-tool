@@ -430,6 +430,108 @@ export PROMPT_COMMAND="prompt_command"
 
 Remove/comment out lines you do	not want.
 
+# YubiKey support
+
+You can use a YubiKey ([yubico](https://www.yubico.com/)) to generate the MFA tokens needed for
+authentication on AWS. You can set up both your phone (using a TOTP authenticator app) and
+YubiKey at the same time to authenticate for the same user.
+
+## Prerequisites
+
+* You must have a YubiKey.
+* You must have the YubiKey CLI tool installed.
+* You must reset your MFA device on AWS (to retrieve the MFA seed)
+
+## Get the YubiKey command line tool
+
+[Download YubiKey Manager (ykman) Installer](https://docs.yubico.com/software/yubikey/tools/ykman/Install_ykman.html#download-yubikey-manager-ykman-installer).
+
+### MacOS
+[MacOS Installation](https://docs.yubico.com/software/yubikey/tools/ykman/Install_ykman.html#macos-installation).
+Suggested method for install is using brew:
+```sh
+brew install ykman
+```
+
+### Linux
+
+[Linux Installation](https://docs.yubico.com/software/yubikey/tools/ykman/Install_ykman.html#linux-installation).
+
+### Windows
+
+Has not been tested.
+
+## Get the MFA seed and enable integration
+
+You will perform these steps to prepare Yubikey for MFA authentication.
+
+1. Get a MFA seed from AWS.
+2. Create an account in YubiKey by providing the MFA seed from AWS.
+3. Confirm the MFA to AWS by provide two token codes.
+
+
+### 1. Get a MFA seed from AWS.
+
+This depends on your environment. During MFA device creation AWS will have the option to show the seed.
+Temporarily store the seed in your preferred location. AWS will ask for two consecutive token codes. You will do this in step 3.
+
+### 2. Create an account in YubiKey by providing the MFA seed from AWS.
+
+```sh
+yubikey -e <seed>
+```
+
+This will:
+a. Create an account in your yubikey oath space and set the seed.
+b. Configure session tool to use this account.
+
+Alternatively, you can setup YubiKey integration for non-default profile:
+
+```sh
+yubikey -p <profile> -e <seed>
+```
+
+### 3. Confirm the MFA to AWS by provide two token codes.
+
+Generate two consecutive token codes:
+
+```sh
+yubikey -m  # Wait about 30 seconds before running the next command
+yubikey -m
+```
+
+**Note:** To retrieve token codes for non-default profile: `yubikey -p <profile> -m`.
+
+## Using YubiKey
+
+```sh
+get_session     # Get a session in your default profile, using the MFA provided by YubiKey
+                # This will prompt you for a password (if set) and request you to touch the YubiKey
+yubikey -m      # Print the current MFA token, useful if creating a session on another machine
+
+get_session -p <profile> # Get a session for non-default profile, assuming you set up yubikey for this profile.
+
+get_session <MFA token>  # Manually providing the token code from your phone authenticator app.
+```
+
+## Secure the YubiKey
+
+You should make sure your OATH application on the YubiKey is password protected.
+A password can be set using this command:
+
+```sh
+ykman oath access change
+```
+
+## Disable YubiKey integration
+
+```sh
+yubikey -d
+```
+
+This will delete the account from your YubiKey and remove the YubiKey configuration from session tool.
+It will prompt you about removal of the account from the YubiKey. Thus is is possible to keep the account.
+
 # Known issues  
 
 * If you do not have a default profile or you change the profile name to one that does not exists in your credentials file, aws cli commands will fail. You need to unset the AWS_PROFILE variable or use these tools to set a new value: `get_session -p <profile> <mfa>`.
